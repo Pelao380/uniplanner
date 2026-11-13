@@ -8,13 +8,17 @@ import Dashboard from './pages/Dashboard.jsx';
 import CourseDetail from './pages/CourseDetail.jsx';
 import './styles.css';
 
-function Protected({ children }) {
-  const { user, loading } = useAuth();
+// La app no exige cuenta: sin sesión funciona igual, guardando en el navegador.
+// Lo único que hay que esperar es a saber si el token guardado sirve, para no
+// mostrar los datos de invitado un instante a alguien que sí tiene sesión.
+function Sesion({ children }) {
+  const { loading } = useAuth();
   if (loading) return <p className="center">Cargando…</p>;
-  return user ? children : <Navigate to="/login" replace />;
+  return children;
 }
 
-function PublicOnly({ children }) {
+// Con sesión iniciada no tiene sentido ver el formulario de login.
+function SoloSinSesion({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <p className="center">Cargando…</p>;
   return user ? <Navigate to="/" replace /> : children;
@@ -25,9 +29,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<PublicOnly><AuthPage mode="login" /></PublicOnly>} />
-          <Route path="/register" element={<PublicOnly><AuthPage mode="register" /></PublicOnly>} />
-          <Route element={<Protected><Layout /></Protected>}>
+          <Route path="/login" element={<SoloSinSesion><AuthPage mode="login" /></SoloSinSesion>} />
+          <Route path="/register" element={<SoloSinSesion><AuthPage mode="register" /></SoloSinSesion>} />
+          <Route element={<Sesion><Layout /></Sesion>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
           </Route>

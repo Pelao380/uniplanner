@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api.js';
+import { db } from '../store.js';
+import { useAuth } from '../AuthContext.jsx';
 import GradeBadge, { STATUS_LABEL } from '../components/GradeBadge.jsx';
 
 const EMPTY = { name: '', code: '', semester: '', professor: '' };
 
 export default function Dashboard() {
+  const { esInvitado, aviso, descartarAviso } = useAuth();
   const [courses, setCourses] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [showForm, setShowForm] = useState(false);
@@ -13,15 +15,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const load = () =>
-    api.listCourses().then(setCourses).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    db.listCourses().then(setCourses).catch((e) => setError(e.message)).finally(() => setLoading(false));
 
-  useEffect(() => { load(); }, []);
+  // Se recarga al entrar y al cambiar de invitado a cuenta (o al revés),
+  // porque los ramos ya no salen del mismo lado.
+  useEffect(() => { load(); }, [esInvitado]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      await api.createCourse(form);
+      await db.createCourse(form);
       setForm(EMPTY);
       setShowForm(false);
       load();
@@ -34,7 +38,7 @@ export default function Dashboard() {
     if (!confirm('¿Eliminar este ramo y todas sus evaluaciones?')) return;
     setError('');
     try {
-      await api.deleteCourse(id);
+      await db.deleteCourse(id);
       setCourses((cs) => cs.filter((c) => c.id !== id));
     } catch (err) {
       setError(err.message);
@@ -46,11 +50,24 @@ export default function Dashboard() {
 
   return (
     <>
+      {aviso && (
+        <p className="nota" role="status">
+          {aviso} <button className="link" onClick={descartarAviso}>Entendido</button>
+        </p>
+      )}
+
+      {esInvitado && (
+        <p className="nota">
+          Estás usando UniPlanner sin cuenta: tus ramos se guardan <strong>solo en este navegador</strong>.{' '}
+          <Link to="/register">Crea una cuenta</Link> para no perderlos y abrirlos desde otro dispositivo.
+        </p>
+      )}
+
       <div className="page-head">
         <div>
           <h2>Mis ramos</h2>
           <p className="muted">
-            {courses.length} ramo(s) · Promedio general: <GradeBadge value={overall} />
+            {courses.length === 1 ? '1 ramo' : `${courses.length} ramos`} · Promedio general: <GradeBadge value={overall} />
           </p>
         </div>
         <button className="btn" onClick={() => setShowForm((s) => !s)}>

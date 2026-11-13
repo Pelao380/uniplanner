@@ -4,10 +4,11 @@
 
 Aplicación full stack para organizar los ramos de la universidad: registra tus evaluaciones con su ponderación, ingresa tus notas y sabe al instante tu promedio y **qué nota necesitas para aprobar** (escala chilena 1.0–7.0).
 
-> 🔗 **Demo:** _agrega aquí el link cuando la despliegues_
+> 🔗 **Demo:** https://uniplanner-sable.vercel.app — **sin registrarte**: entras y pruebas.
 > 📸 _agrega aquí capturas de pantalla_
 
 ## Funcionalidades
+- **Se usa sin crear cuenta**: entras y empiezas a cargar ramos. La cuenta es opcional
 - Registro e inicio de sesión con contraseñas hasheadas (bcrypt) y JWT
 - CRUD de ramos y de evaluaciones
 - Promedio ponderado por ramo y promedio general
@@ -15,6 +16,40 @@ Aplicación full stack para organizar los ramos de la universidad: registra tus 
 - Detecta cuando la aprobación ya está asegurada o ya no alcanza
 - Rechaza ponderaciones que superen el 100%
 - Cada usuario solo puede ver y modificar sus propios datos
+
+## Usar sin cuenta
+
+Una calculadora de notas que exige registrarse antes de mostrar nada pierde gente en la
+puerta. Así que la app arranca en **modo invitado**: los ramos se guardan en el navegador
+(`localStorage`) y todo funciona igual, incluido el cálculo de notas, sin tocar el servidor.
+
+La cuenta sirve para lo que de verdad necesita un servidor: no perder los datos si borras
+el navegador y abrirlos desde otro dispositivo. Al registrarte, lo que ya tenías **se sube
+solo**; al iniciar sesión en una cuenta que ya existe se te pregunta antes, porque esa
+cuenta puede tener ramos de antes y nadie quiere duplicados.
+
+Las dos fuentes de datos ([`api.js`](client/src/api.js) y [`local.js`](client/src/local.js))
+exponen los mismos métodos, y [`store.js`](client/src/store.js) elige una en cada llamada
+según si hay sesión. Las páginas no saben con cuál están hablando.
+
+> `local.js` repite a mano las validaciones y los mensajes de error del servidor. Es
+> deliberado: si no, la app se comportaría distinto según si tienes cuenta o no.
+
+### Una lógica, dos copias
+
+El cálculo de notas vive en [`server/src/grades.js`](server/src/grades.js) y, copiado,
+en [`client/src/grades.js`](client/src/grades.js): el modo invitado lo necesita en el
+navegador. Un paquete compartido obligaría a configurar el build de Vercel para leer
+archivos fuera de `client/`, y son 60 líneas de aritmética pura.
+
+El riesgo de copiar es que las dos versiones se separen, así que
+[`scripts/check-grades-parity.mjs`](scripts/check-grades-parity.mjs) compara las dos
+implementaciones con 20.000 casos generados más una docena escritos a mano, y corre en
+cada push. Si tocas una sola, el CI se cae.
+
+```bash
+node scripts/check-grades-parity.mjs
+```
 
 ## Cómo se calculan las notas
 
@@ -101,7 +136,7 @@ neon databases create --name uniplanner_test
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) corre en cada push a `main` y en cada pull request:
 
 - **API:** levanta un servicio PostgreSQL 16, instala con `npm ci` y corre toda la suite. No necesita ningún secreto configurado en GitHub.
-- **Frontend:** `npm ci` y `npm run build`.
+- **Frontend:** `npm ci`, el control de paridad del cálculo de notas y `npm run build`.
 
 ## API REST
 
@@ -163,6 +198,7 @@ si alguien vuelve a poner un `await` dentro del `map`, falla ahí y no en produc
 - [x] CI con GitHub Actions
 - [x] Rate limiting en `/api/auth` y helmet
 - [x] Listar los ramos en una sola consulta (antes hacía 1 + N)
+- [x] Usar la app sin cuenta, con los datos en el navegador
 - [ ] Créditos/SCT por ramo para un promedio general ponderado
 - [ ] Simulador "¿qué pasa si saco X?"
 - [ ] Nota de presentación + examen y eximición

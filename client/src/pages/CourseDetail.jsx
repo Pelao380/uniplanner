@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../api.js';
+import { db } from '../store.js';
 import GradeBadge, { STATUS_LABEL } from '../components/GradeBadge.jsx';
 
 const EMPTY = { name: '', weight: '', grade: '', due_date: '' };
@@ -28,15 +28,15 @@ export default function CourseDetail() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
 
-  const load = () => api.getCourse(id).then(setCourse).catch((e) => setError(e.message));
+  const load = () => db.getCourse(id).then(setCourse).catch((e) => setError(e.message));
   useEffect(() => { load(); }, [id]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      if (editingId) await api.updateEvaluation(id, editingId, toPayload(form));
-      else await api.createEvaluation(id, toPayload(form));
+      if (editingId) await db.updateEvaluation(id, editingId, toPayload(form));
+      else await db.createEvaluation(id, toPayload(form));
       setForm(EMPTY);
       setEditingId(null);
       load();
@@ -59,7 +59,7 @@ export default function CourseDetail() {
     if (!confirm('¿Eliminar esta evaluación?')) return;
     setError('');
     try {
-      await api.deleteEvaluation(id, evalId);
+      await db.deleteEvaluation(id, evalId);
       load();
     } catch (err) {
       setError(err.message);
