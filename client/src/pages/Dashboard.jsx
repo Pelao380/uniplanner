@@ -18,8 +18,15 @@ export default function Dashboard() {
     db.listCourses().then(setCourses).catch((e) => setError(e.message)).finally(() => setLoading(false));
 
   // Se recarga al entrar y al cambiar de invitado a cuenta (o al revés),
-  // porque los ramos ya no salen del mismo lado.
-  useEffect(() => { load(); }, [esInvitado]);
+  // porque los ramos ya no salen del mismo lado. Se vacía antes de pedir:
+  // si la nueva carga falla, no deben quedar en pantalla los ramos de la
+  // sesión anterior.
+  useEffect(() => {
+    setCourses([]);
+    setError('');
+    setLoading(true);
+    load();
+  }, [esInvitado]);
 
   const onSubmit = async (e) => {
     e.preventDefault();

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { db } from '../store.js';
+import { useAuth } from '../AuthContext.jsx';
 import GradeBadge, { STATUS_LABEL } from '../components/GradeBadge.jsx';
 
 const EMPTY = { name: '', weight: '', grade: '', due_date: '' };
@@ -23,13 +24,26 @@ function neededLabel(summary) {
 
 export default function CourseDetail() {
   const { id } = useParams();
+  const { esInvitado } = useAuth();
   const [course, setCourse] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
 
   const load = () => db.getCourse(id).then(setCourse).catch((e) => setError(e.message));
-  useEffect(() => { load(); }, [id]);
+
+  // Depende de esInvitado, no solo del id: al cerrar sesión el ramo ya no sale
+  // del mismo lado. Sin esto la página seguía mostrando el ramo de la cuenta
+  // anterior hasta que navegaras a otra parte, que en un computador compartido
+  // es justo lo que no debe pasar. Se limpia antes de pedir, para no dejar
+  // datos viejos en pantalla si la nueva carga falla.
+  useEffect(() => {
+    setCourse(null);
+    setError('');
+    setEditingId(null);
+    setForm(EMPTY);
+    load();
+  }, [id, esInvitado]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
