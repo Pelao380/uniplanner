@@ -5,7 +5,17 @@
 Aplicación full stack para organizar los ramos de la universidad: registra tus evaluaciones con su ponderación, ingresa tus notas y sabe al instante tu promedio y **qué nota necesitas para aprobar** (escala chilena 1.0–7.0).
 
 > 🔗 **Demo:** https://uniplanner-sable.vercel.app — **sin registrarte**: entras y pruebas.
-> 📸 _agrega aquí capturas de pantalla_
+
+![Listado de ramos: cada tarjeta muestra el promedio, el avance evaluado y si vas aprobando](docs/capturas/dashboard-claro.png)
+
+Dentro de un ramo está lo que de verdad uno quiere saber en mayo: **qué nota necesitas en
+lo que falta**. Acá, con un 5.4 y un 4.8 rendidos, basta un 2.3 en el examen.
+
+![Detalle de un ramo con sus evaluaciones, el promedio actual y la nota necesaria para aprobar](docs/capturas/detalle-ramo.png)
+
+Y en oscuro, que es cuando uno suele estar calculando esto:
+
+![El mismo listado de ramos en tema oscuro](docs/capturas/dashboard-oscuro.png)
 
 ## Funcionalidades
 - **Se usa sin crear cuenta**: entras y empiezas a cargar ramos. La cuenta es opcional
