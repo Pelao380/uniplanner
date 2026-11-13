@@ -191,6 +191,11 @@ th { font-size: .8rem; color: var(--muted); text-transform: uppercase; }
 }
 .nota a { color: var(--nota-text); font-weight: 600; text-decoration: underline; }
 .auth-card .nota { margin-bottom: 0; }
+/* Algunos avisos llevan un formulario dentro (guardar lo que quedó sin cuenta):
+   el texto va arriba y los controles abajo, no todo apretado en una línea. */
+.nota p { margin: 0 0 .6rem; }
+.nota .row { flex-wrap: wrap; }
+.nota input { min-width: 12rem; }
 
 /* Un botón que se ve como enlace: acción, no navegación. */
 .link {

@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import Layout from './components/Layout.jsx';
 import AuthPage from './pages/AuthPage.jsx';
+import Calculadora from './pages/Calculadora.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import CourseDetail from './pages/CourseDetail.jsx';
 import AvisoDespertando from './components/AvisoDespertando.jsx';
@@ -37,6 +38,22 @@ function SoloSinSesion({ children }) {
   return user ? <Navigate to="/" replace /> : children;
 }
 
+// La portada no es la misma con cuenta y sin ella. Sin cuenta la app es una
+// calculadora de notas y nada más; tener varios ramos organizados es lo que se
+// gana al registrarse, y por eso el dashboard aparece recién con sesión.
+function Inicio() {
+  const { esInvitado } = useAuth();
+  return esInvitado ? <Calculadora /> : <Dashboard />;
+}
+
+// Sin cuenta no hay ramos que abrir. Importa sobre todo al cerrar sesión
+// estando dentro de un ramo: en vez de quedarse en una URL que ya no lleva a
+// ninguna parte, vuelve a la calculadora.
+function SoloConSesion({ children }) {
+  const { esInvitado } = useAuth();
+  return esInvitado ? <Navigate to="/" replace /> : children;
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -45,8 +62,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/login" element={<SoloSinSesion><AuthPage mode="login" /></SoloSinSesion>} />
           <Route path="/register" element={<SoloSinSesion><AuthPage mode="register" /></SoloSinSesion>} />
           <Route element={<Sesion><Layout /></Sesion>}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/" element={<Inicio />} />
+            <Route path="/courses/:id" element={<SoloConSesion><CourseDetail /></SoloConSesion>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

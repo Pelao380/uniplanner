@@ -31,13 +31,28 @@ Y en oscuro, que es cuando uno suele estar calculando esto:
 ## Usar sin cuenta
 
 Una calculadora de notas que exige registrarse antes de mostrar nada pierde gente en la
-puerta. Así que la app arranca en **modo invitado**: los ramos se guardan en el navegador
-(`localStorage`) y todo funciona igual, incluido el cálculo de notas, sin tocar el servidor.
+puerta. Y pedir "nombre del ramo" antes de dejarte calcular es casi lo mismo: estorba a
+quien solo quiere saber con cuánto queda. Así que **sin cuenta la app es una calculadora
+y nada más**: entras evaluaciones, ves el promedio y lo que necesitas, sin pasar por
+ningún formulario previo. Todo ocurre en el navegador (`localStorage`), sin tocar el
+servidor.
 
-La cuenta sirve para lo que de verdad necesita un servidor: no perder los datos si borras
-el navegador y abrirlos desde otro dispositivo. Al registrarte, lo que ya tenías **se sube
-solo**; al iniciar sesión en una cuenta que ya existe se te pregunta antes, porque esa
-cuenta puede tener ramos de antes y nadie quiere duplicados.
+La cuenta es lo que desbloquea tener **varios ramos a la vez**, además de lo que de verdad
+necesita un servidor: no perder los datos si borras el navegador y abrirlos desde otro
+dispositivo. Esa diferencia es la razón de registrarse, y por eso el dashboard de ramos
+aparece recién con sesión.
+
+Por dentro el invitado sí tiene un ramo, porque el almacenamiento local es el mismo que
+usa la API, pero es implícito y se crea recién con la primera evaluación: entrar a mirar
+no escribe nada. Al crear la cuenta se te pregunta cómo se llama ese ramo, porque hasta
+ese momento no tenía nombre, y pasa a ser el primero de tu cuenta. Al iniciar sesión en
+una cuenta que ya existe se ofrece lo mismo en vez de subirlo solo: esa cuenta puede tener
+ramos de antes y nadie quiere duplicados. Si dices "ahora no", lo local queda intacto.
+
+La pantalla de evaluaciones es una sola
+([`client/src/components/Evaluaciones.jsx`](client/src/components/Evaluaciones.jsx)): la
+usan igual la calculadora y la página de un ramo, y lo único que cambia es de dónde sale
+el ramo.
 
 Las dos fuentes de datos ([`api.js`](client/src/api.js) y [`local.js`](client/src/local.js))
 exponen los mismos métodos, y [`store.js`](client/src/store.js) elige una en cada llamada
@@ -292,7 +307,9 @@ Casi siempre es `DATABASE_URL`. Los logs de Render (servicio → **Logs**) lo di
 - [x] Rate limiting en `/api/auth` y helmet
 - [x] Listar los ramos en una sola consulta (antes hacía 1 + N)
 - [x] Usar la app sin cuenta, con los datos en el navegador
+- [x] Sin cuenta, calculadora directa: la cuenta es la que desbloquea varios ramos
 - [x] Tema claro, oscuro o el del sistema
+- [ ] Renombrar un ramo desde la interfaz (la API ya lo permite, falta el botón)
 - [ ] Créditos/SCT por ramo para un promedio general ponderado
 - [ ] Simulador "¿qué pasa si saco X?"
 - [ ] Nota de presentación + examen y eximición

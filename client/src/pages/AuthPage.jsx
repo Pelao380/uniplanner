@@ -4,16 +4,16 @@ import { useAuth } from '../AuthContext.jsx';
 import AvisoDespertando from '../components/AvisoDespertando.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 
-// "Los 1 ramo(s)" se lee mal. Dos frases completas en vez de una con paréntesis.
+// Sin cuenta las notas no tienen nombre de ramo todavía, así que el aviso no
+// puede hablar de "tu ramo". Si son varios vienen de la versión anterior, donde
+// el invitado sí los nombraba.
 const avisoDeInvitado = (isLogin, n) => {
-  if (isLogin) {
-    return n === 1
-      ? 'Tienes un ramo guardado en este navegador. Al entrar te preguntaremos si quieres agregarlo a tu cuenta.'
-      : `Tienes ${n} ramos guardados en este navegador. Al entrar te preguntaremos si quieres agregarlos a tu cuenta.`;
+  if (n === 1) {
+    return isLogin
+      ? 'Tienes notas guardadas en este navegador. Al entrar podrás guardarlas en tu cuenta.'
+      : 'Las notas que llevas en este navegador podrás guardarlas como tu primer ramo.';
   }
-  return n === 1
-    ? 'El ramo que llevas en este navegador se guardará en tu cuenta.'
-    : `Los ${n} ramos que llevas en este navegador se guardarán en tu cuenta.`;
+  return `Tienes ${n} ramos guardados en este navegador. Al entrar podrás guardarlos en tu cuenta.`;
 };
 
 export default function AuthPage({ mode }) {

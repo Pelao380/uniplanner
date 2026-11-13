@@ -1,13 +1,16 @@
+// La lista de ramos. Solo existe con sesión: sin cuenta el ruteo muestra la
+// calculadora en su lugar.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../store.js';
 import { useAuth } from '../AuthContext.jsx';
 import GradeBadge, { STATUS_LABEL } from '../components/GradeBadge.jsx';
+import GuardarDeInvitado from '../components/GuardarDeInvitado.jsx';
 
 const EMPTY = { name: '', semester: '' };
 
 export default function Dashboard() {
-  const { esInvitado, aviso, descartarAviso } = useAuth();
+  const { aviso, descartarAviso } = useAuth();
   const [courses, setCourses] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [showForm, setShowForm] = useState(false);
@@ -17,16 +20,9 @@ export default function Dashboard() {
   const load = () =>
     db.listCourses().then(setCourses).catch((e) => setError(e.message)).finally(() => setLoading(false));
 
-  // Se recarga al entrar y al cambiar de invitado a cuenta (o al revés),
-  // porque los ramos ya no salen del mismo lado. Se vacía antes de pedir:
-  // si la nueva carga falla, no deben quedar en pantalla los ramos de la
-  // sesión anterior.
-  useEffect(() => {
-    setCourses([]);
-    setError('');
-    setLoading(true);
-    load();
-  }, [esInvitado]);
+  // Basta cargar al montar: al cerrar sesión esta pantalla desaparece completa,
+  // así que no hay forma de que quede mostrando los ramos de la cuenta anterior.
+  useEffect(() => { load(); }, []);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -63,12 +59,8 @@ export default function Dashboard() {
         </p>
       )}
 
-      {esInvitado && (
-        <p className="nota">
-          Estás usando UniPlanner sin cuenta: tus ramos se guardan <strong>solo en este navegador</strong>.{' '}
-          <Link to="/register">Crea una cuenta</Link> para no perderlos y abrirlos desde otro dispositivo.
-        </p>
-      )}
+      {/* Si quedaron notas sueltas en el navegador, acá se ofrece guardarlas. */}
+      <GuardarDeInvitado onGuardado={load} />
 
       <div className="page-head">
         <div>
