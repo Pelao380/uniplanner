@@ -278,8 +278,8 @@ Casi siempre es `DATABASE_URL`. Los logs de Render (servicio → **Logs**) lo di
 - [x] Rate limiting en `/api/auth` y helmet
 - [x] Listar los ramos en una sola consulta (antes hacía 1 + N)
 - [x] Usar la app sin cuenta, con los datos en el navegador
+- [x] Tema claro, oscuro o el del sistema
 - [ ] Créditos/SCT por ramo para un promedio general ponderado
 - [ ] Simulador "¿qué pasa si saco X?"
 - [ ] Nota de presentación + examen y eximición
 - [ ] Calendario de evaluaciones próximas
-- [x] Tema oscuro
