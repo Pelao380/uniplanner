@@ -201,6 +201,32 @@ si alguien vuelve a poner un `await` dentro del `map`, falla ahí y no en produc
 - **CORS:** `CLIENT_URL` es el origen de Vercel **sin ruta ni barra final**
   (`https://tu-app.vercel.app`). Se compara exacto; con una barra de más, la API responde 403.
 
+### Qué pasa con cada push
+
+Nada que hacer a mano: Render y Vercel escuchan `main` y despliegan solos.
+
+| Cambias | Se despliega | Tienes que hacer algo |
+|---|---|---|
+| Algo en `client/` | Vercel | No |
+| Algo en `server/` | Render | No |
+| `render.yaml` | Render | No |
+| **`schema.sql`** | **nadie** | **Sí**: correr las migraciones a mano |
+| Una variable de entorno | — | Sí, ver abajo |
+
+Como el servicio de Render tiene `rootDir: server`, un commit que solo toca `client/`
+no dispara un despliegue de la API. Si alguna vez necesitas saltarte un despliegue,
+`[skip render]` en el mensaje del commit lo evita.
+
+Las dos excepciones:
+
+- **La base de datos no se migra sola.** El proyecto no usa una herramienta de migraciones:
+  si cambias [`schema.sql`](server/schema.sql), tienes que aplicarlo tú contra la base de
+  producción. Mientras no lo hagas, el código nuevo corre contra tablas viejas.
+- **`VITE_API_URL` se hornea en el build.** Las variables `VITE_*` no se leen en tiempo de
+  ejecución: Vite las reemplaza por su valor al compilar. Si la cambias en Vercel, hay que
+  volver a desplegar para que surta efecto. Las del backend no: Render reinicia el servicio
+  al guardarlas.
+
 > ⏱️ **Arranque en frío:** en el plan gratuito de Render el servicio se duerme cuando nadie
 > lo usa y la primera petición puede tardar ~50 segundos. Como la app funciona sin cuenta,
 > eso solo lo nota quien se registra o inicia sesión: abrir la demo y cargar ramos es
