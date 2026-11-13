@@ -54,9 +54,7 @@ const textoOpcional = (v, max) => {
 function validarRamo(datos) {
   return {
     name: textoObligatorio(datos.name, 150),
-    code: textoOpcional(datos.code, 30),
     semester: textoOpcional(datos.semester, 20),
-    professor: textoOpcional(datos.professor, 150),
   };
 }
 
@@ -207,7 +205,7 @@ export const invitado = {
   contenido() {
     const d = leer();
     return d.courses.map((c) => ({
-      curso: { name: c.name, code: c.code, semester: c.semester, professor: c.professor },
+      curso: { name: c.name, semester: c.semester },
       evaluaciones: evaluacionesDe(d, c.id).map((e) => ({
         name: e.name, weight: e.weight, grade: e.grade, due_date: e.due_date,
       })),

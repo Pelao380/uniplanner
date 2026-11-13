@@ -139,6 +139,10 @@ input:focus { outline: 2px solid var(--link); border-color: transparent; }
 .page-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .back { display: inline-block; margin-bottom: 1rem; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end; }
+/* El botón ocupa una celda de la grilla igual que un campo. Sin esto se estira
+   a todo el ancho de su columna, y mientras menos campos tenga el formulario
+   más absurdo se ve. */
+.form-grid .btn { justify-self: start; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .course-card { display: flex; flex-direction: column; gap: .6rem; margin: 0; }

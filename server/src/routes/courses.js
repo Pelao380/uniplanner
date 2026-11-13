@@ -8,9 +8,7 @@ const router = Router();
 
 const courseSchema = z.object({
   name: z.string().trim().min(1, 'El nombre es obligatorio').max(150),
-  code: z.string().trim().max(30).optional().nullable(),
   semester: z.string().trim().max(20).optional().nullable(),
-  professor: z.string().trim().max(150).optional().nullable(),
 });
 
 const evaluationSchema = z.object({
@@ -74,11 +72,11 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', validate(courseSchema), asyncHandler(async (req, res) => {
-  const { name, code, semester, professor } = req.body;
+  const { name, semester } = req.body;
   const { rows } = await query(
-    `INSERT INTO courses (user_id, name, code, semester, professor)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [req.userId, name, code || null, semester || null, professor || null]
+    `INSERT INTO courses (user_id, name, semester)
+     VALUES ($1, $2, $3) RETURNING *`,
+    [req.userId, name, semester || null]
   );
   res.status(201).json({ ...rows[0], summary: summarize([]) });
 }));
@@ -91,11 +89,11 @@ router.get('/:id', courseParams, asyncHandler(async (req, res) => {
 }));
 
 router.put('/:id', courseParams, validate(courseSchema), asyncHandler(async (req, res) => {
-  const { name, code, semester, professor } = req.body;
+  const { name, semester } = req.body;
   const { rows } = await query(
-    `UPDATE courses SET name = $1, code = $2, semester = $3, professor = $4
-     WHERE id = $5 AND user_id = $6 RETURNING *`,
-    [name, code || null, semester || null, professor || null, req.params.id, req.userId]
+    `UPDATE courses SET name = $1, semester = $2
+     WHERE id = $3 AND user_id = $4 RETURNING *`,
+    [name, semester || null, req.params.id, req.userId]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Ramo no encontrado' });
   res.json(rows[0]);

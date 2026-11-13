@@ -11,9 +11,7 @@ CREATE TABLE IF NOT EXISTS courses (
   id         SERIAL PRIMARY KEY,
   user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name       VARCHAR(150) NOT NULL,
-  code       VARCHAR(30),
   semester   VARCHAR(20),
-  professor  VARCHAR(150),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

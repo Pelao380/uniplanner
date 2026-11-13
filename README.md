@@ -247,9 +247,17 @@ no dispara un despliegue de la API. Si alguna vez necesitas saltarte un desplieg
 
 Las dos excepciones:
 
-- **La base de datos no se migra sola.** El proyecto no usa una herramienta de migraciones:
-  si cambias [`schema.sql`](server/schema.sql), tienes que aplicarlo tú contra la base de
-  producción. Mientras no lo hagas, el código nuevo corre contra tablas viejas.
+- **La base de datos no se migra sola.** [`schema.sql`](server/schema.sql) solo crea las
+  tablas que faltan: nunca toca una que ya existe. Los cambios sobre tablas con datos van
+  como un `.sql` numerado en [`server/migrations/`](server/migrations), y se aplican a mano:
+
+  ```bash
+  npm run db:migrate    # dentro de server/, con DATABASE_URL apuntando a la base
+  ```
+
+  **Primero despliega el código, después migra.** Si borras una columna mientras Render
+  sigue sirviendo la versión anterior, esa versión seguirá pidiéndosela a Postgres y cada
+  petición que la toque responderá 500 hasta que termine el despliegue.
 - **`VITE_API_URL` se hornea en el build.** Las variables `VITE_*` no se leen en tiempo de
   ejecución: Vite las reemplaza por su valor al compilar. Si la cambias en Vercel, hay que
   volver a desplegar para que surta efecto. Las del backend no: Render reinicia el servicio

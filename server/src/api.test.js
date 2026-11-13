@@ -151,7 +151,7 @@ conBase('API de UniPlanner', () => {
 
       const editado = await auth(request(app).put(`/api/courses/${ramo.id}`)).send({
         name: 'Álgebra',
-        code: 'MAT-201',
+        semester: '2026-1',
       });
       expect(editado.status).toBe(200);
       expect(editado.body.name).toBe('Álgebra');

@@ -4,7 +4,7 @@ import { db } from '../store.js';
 import { useAuth } from '../AuthContext.jsx';
 import GradeBadge, { STATUS_LABEL } from '../components/GradeBadge.jsx';
 
-const EMPTY = { name: '', code: '', semester: '', professor: '' };
+const EMPTY = { name: '', semester: '' };
 
 export default function Dashboard() {
   const { esInvitado, aviso, descartarAviso } = useAuth();
@@ -85,9 +85,7 @@ export default function Dashboard() {
       {showForm && (
         <form className="card form-grid" onSubmit={onSubmit}>
           <label>Nombre*<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
-          <label>Código<input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="INF-101" /></label>
           <label>Semestre<input value={form.semester} onChange={(e) => setForm({ ...form, semester: e.target.value })} placeholder="2026-2" /></label>
-          <label>Profesor/a<input value={form.professor} onChange={(e) => setForm({ ...form, professor: e.target.value })} /></label>
           <button className="btn">Guardar</button>
         </form>
       )}
@@ -103,9 +101,7 @@ export default function Dashboard() {
                 <Link to={`/courses/${c.id}`} className="course-name">{c.name}</Link>
                 <GradeBadge value={c.summary.currentAverage} />
               </div>
-              <p className="muted small">
-                {[c.code, c.semester, c.professor].filter(Boolean).join(' · ') || 'Sin detalles'}
-              </p>
+              <p className="muted small">{c.semester || 'Sin semestre'}</p>
               <div className="progress">
                 <div style={{ width: `${Math.min(c.summary.gradedWeight, 100)}%` }} />
               </div>

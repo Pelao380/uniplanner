@@ -92,7 +92,7 @@ export default function CourseDetail() {
       <div className="page-head">
         <div>
           <h2>{course.name}</h2>
-          <p className="muted">{[course.code, course.semester, course.professor].filter(Boolean).join(' · ')}</p>
+          {course.semester && <p className="muted">{course.semester}</p>}
         </div>
       </div>
 

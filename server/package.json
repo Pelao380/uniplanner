@@ -8,6 +8,7 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "db:init": "node src/initDb.js",
+    "db:migrate": "node src/migrate.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
