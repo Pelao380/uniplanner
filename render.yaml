@@ -1,0 +1,35 @@
+# Blueprint de Render: https://render.com/docs/blueprint-spec
+# Render lee este archivo y crea el servicio ya configurado. Solo hay que
+# pegar DATABASE_URL y CLIENT_URL cuando lo pida.
+services:
+  - type: web
+    name: uniplanner-api
+    runtime: node
+    plan: free
+    # Render no tiene región en Sudamérica. Virginia es la más cercana a
+    # la base de datos, que está en aws-sa-east-1 (São Paulo).
+    region: virginia
+    # El backend vive en un subdirectorio: los cambios en client/ no
+    # disparan un despliegue de la API.
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render genera un valor aleatorio de 256 bits en base64. No pasa por
+      # nadie: ni por ti, ni por el repositorio, ni por una conversación.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # sync: false = Render lo pide al crear el Blueprint y no lo guarda
+      # en el repositorio. Acá va la connection string POOLED de Neon.
+      - key: DATABASE_URL
+        sync: false
+
+      # La URL de Vercel, sin barra final. Acepta varias separadas por coma.
+      - key: CLIENT_URL
+        sync: false
