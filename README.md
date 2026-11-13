@@ -1,5 +1,7 @@
 # 🎓 UniPlanner
 
+[![CI](https://github.com/Pelao380/uniplanner/actions/workflows/ci.yml/badge.svg)](https://github.com/Pelao380/uniplanner/actions/workflows/ci.yml)
+
 Aplicación full stack para organizar los ramos de la universidad: registra tus evaluaciones con su ponderación, ingresa tus notas y sabe al instante tu promedio y **qué nota necesitas para aprobar** (escala chilena 1.0–7.0).
 
 > 🔗 **Demo:** _agrega aquí el link cuando la despliegues_
