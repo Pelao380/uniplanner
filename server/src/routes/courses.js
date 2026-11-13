@@ -53,14 +53,24 @@ async function weightOverflow(courseId, weight, excludeEvalId = 0) {
 
 // ---------- Ramos ----------
 router.get('/', asyncHandler(async (req, res) => {
-  const { rows: courses } = await query(
-    'SELECT * FROM courses WHERE user_id = $1 ORDER BY created_at DESC',
+  // Una sola consulta, haya 1 ramo o 50. Antes hacía 1 + N (una por ramo),
+  // y con la base de datos en otra región cada viaje extra se paga en espera.
+  // Solo se agregan weight y grade porque es lo único que summarize necesita.
+  const { rows } = await query(
+    `SELECT c.*,
+            COALESCE(
+              json_agg(json_build_object('weight', e.weight, 'grade', e.grade))
+                FILTER (WHERE e.id IS NOT NULL),
+              '[]'
+            ) AS evaluations
+       FROM courses c
+       LEFT JOIN evaluations e ON e.course_id = c.id
+      WHERE c.user_id = $1
+      GROUP BY c.id
+      ORDER BY c.created_at DESC`,
     [req.userId]
   );
-  const result = await Promise.all(
-    courses.map(async (c) => ({ ...c, summary: summarize(await getEvaluations(c.id)) }))
-  );
-  res.json(result);
+  res.json(rows.map(({ evaluations, ...course }) => ({ ...course, summary: summarize(evaluations) })));
 }));
 
 router.post('/', validate(courseSchema), asyncHandler(async (req, res) => {

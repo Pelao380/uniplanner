@@ -123,6 +123,24 @@ Todas las rutas de `/api/courses` requieren el header `Authorization: Bearer <to
 
 Códigos de error: `400` datos inválidos, `401` sin autenticar o token expirado, `403` origen no permitido, `404` no existe o no es tuyo, `409` email ya registrado, `413` cuerpo demasiado grande, `422` las ponderaciones superarían el 100%, `429` demasiados intentos.
 
+### El listado es una sola consulta
+
+`GET /api/courses` arma el resumen de todos los ramos en una sola consulta
+(`LEFT JOIN` + `json_agg`). Antes pedía las evaluaciones ramo por ramo: con la
+base de datos en otra región, eso se paga en latencia. Medido contra Neon en
+São Paulo, con 69 ms de ida y vuelta:
+
+| Ramos | Antes (1 + N consultas) | Ahora (1 consulta) |
+|---|---|---|
+| 5 | 149 ms | 66 ms |
+| 25 | 256 ms | 67 ms |
+| 50 | 418 ms | 70 ms |
+
+Las N consultas salían en paralelo, así que hasta 10 ramos costaban dos viajes;
+pasado el tamaño del pool empiezan a hacer fila. Un test de
+[`api.test.js`](server/src/api.test.js) fija el número de consultas en 1, así que
+si alguien vuelve a poner un `await` dentro del `map`, falla ahí y no en producción.
+
 ## Seguridad
 
 - Contraseñas con bcrypt a 12 rondas. El login tarda a propósito: ver el comentario en [`auth.js`](server/src/routes/auth.js).
@@ -144,7 +162,7 @@ Códigos de error: `400` datos inválidos, `401` sin autenticar o token expirado
 - [x] Tests de integración de la API (Supertest)
 - [x] CI con GitHub Actions
 - [x] Rate limiting en `/api/auth` y helmet
-- [ ] Evitar el N+1 al listar ramos (hoy hace 1 + N consultas)
+- [x] Listar los ramos en una sola consulta (antes hacía 1 + N)
 - [ ] Créditos/SCT por ramo para un promedio general ponderado
 - [ ] Simulador "¿qué pasa si saco X?"
 - [ ] Nota de presentación + examen y eximición

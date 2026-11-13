@@ -295,6 +295,106 @@ conBase('API de UniPlanner', () => {
     });
   });
 
+  describe('listado de ramos', () => {
+    // El listado hacía una consulta por ramo: con la base en otra región cada
+    // ramo nuevo sumaba un viaje de ida y vuelta. Este test fija el número de
+    // consultas, porque es exactamente lo que se arregló: si alguien vuelve a
+    // meter un await dentro del map, falla acá y no en producción.
+    const contarConsultas = async (fn) => {
+      const original = pool.query.bind(pool);
+      let n = 0;
+      pool.query = (...args) => {
+        n += 1;
+        return original(...args);
+      };
+      try {
+        await fn();
+      } finally {
+        pool.query = original;
+      }
+      return n;
+    };
+
+    it('hace una sola consulta, haya 1 ramo o 5', async () => {
+      const token = await registrar(1);
+      const auth = (r) => r.set('Authorization', `Bearer ${token}`);
+
+      for (let i = 1; i <= 5; i += 1) {
+        const ramo = await crearRamo(token, `Ramo ${i}`);
+        await auth(request(app).post(`/api/courses/${ramo.id}/evaluations`))
+          .send({ name: 'C1', weight: 50, grade: 5.0 });
+      }
+
+      let body;
+      const consultas = await contarConsultas(async () => {
+        const res = await auth(request(app).get('/api/courses'));
+        expect(res.status).toBe(200);
+        body = res.body;
+      });
+
+      expect(consultas).toBe(1);
+      expect(body).toHaveLength(5);
+    });
+
+    it('calcula el resumen de cada ramo sin mezclar las evaluaciones', async () => {
+      const token = await registrar(1);
+      const auth = (r) => r.set('Authorization', `Bearer ${token}`);
+      const conEvaluaciones = async (nombre, evs) => {
+        const ramo = await crearRamo(token, nombre);
+        for (const [i, ev] of evs.entries()) {
+          await auth(request(app).post(`/api/courses/${ramo.id}/evaluations`))
+            .send({ name: `C${i + 1}`, weight: ev.weight, grade: ev.grade ?? null });
+        }
+      };
+
+      await conEvaluaciones('Con notas', [{ weight: 30, grade: 3.5 }, { weight: 30, grade: 5.0 }]);
+      await conEvaluaciones('Pendiente', [{ weight: 100 }]);
+      await crearRamo(token, 'Vacio');
+
+      const { body } = await auth(request(app).get('/api/courses'));
+      const porNombre = Object.fromEntries(body.map((c) => [c.name, c.summary]));
+
+      expect(porNombre['Con notas']).toMatchObject({
+        currentAverage: 4.3,
+        gradedWeight: 60,
+        neededToPass: 3.5,
+        status: 'en-curso',
+      });
+      expect(porNombre.Pendiente).toMatchObject({
+        currentAverage: null,
+        totalWeight: 100,
+        gradedWeight: 0,
+        status: 'sin-notas',
+      });
+      // Un ramo sin evaluaciones tiene que aparecer igual: el LEFT JOIN existe
+      // para esto. Con un JOIN normal este ramo desaparecería del listado.
+      expect(porNombre.Vacio).toMatchObject({ currentAverage: null, totalWeight: 0 });
+    });
+
+    it('el listado entrega el resumen, no las evaluaciones', async () => {
+      const token = await registrar(1);
+      const auth = (r) => r.set('Authorization', `Bearer ${token}`);
+      const ramo = await crearRamo(token);
+      await auth(request(app).post(`/api/courses/${ramo.id}/evaluations`))
+        .send({ name: 'C1', weight: 50, grade: 5.0 });
+
+      const { body } = await auth(request(app).get('/api/courses'));
+      expect(body[0]).not.toHaveProperty('evaluations');
+      expect(body[0].summary.currentAverage).toBe(5);
+    });
+
+    it('no muestra los ramos de otro usuario', async () => {
+      const tokenA = await registrar(1);
+      const tokenB = await registrar(2);
+      await crearRamo(tokenA, 'Ramo de A');
+
+      const { body } = await request(app)
+        .get('/api/courses')
+        .set('Authorization', `Bearer ${tokenB}`);
+      expect(body).toEqual([]);
+    });
+  });
+
   describe('protecciones', () => {
     it('rechaza un cuerpo JSON gigante con 413', async () => {
       const res = await request(app)
