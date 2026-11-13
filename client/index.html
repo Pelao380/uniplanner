@@ -3,7 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Antes de que cargue el CSS, el navegador ya sabe que puede pintar oscuro. -->
+    <meta name="color-scheme" content="light dark" />
     <title>UniPlanner — Organiza tus ramos</title>
+
+    <!--
+      Esto va acá, inline y síncrono, a propósito: corre antes de que el
+      navegador pinte nada. Si esperara a React, quien eligió tema oscuro
+      vería un fogonazo blanco en cada carga.
+
+      Solo escribe el atributo; los colores los pone styles.css. Sin
+      preferencia guardada no hace nada y manda la del sistema operativo.
+      La clave y los valores tienen que coincidir con src/theme.js.
+    -->
+    <script>
+      try {
+        var tema = localStorage.getItem('uniplanner:tema');
+        if (tema === 'oscuro') document.documentElement.setAttribute('data-theme', 'dark');
+        else if (tema === 'claro') document.documentElement.setAttribute('data-theme', 'light');
+      } catch (e) {
+        /* localStorage bloqueado: se usa el tema del sistema */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

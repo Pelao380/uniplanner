@@ -9,6 +9,7 @@ Aplicación full stack para organizar los ramos de la universidad: registra tus 
 
 ## Funcionalidades
 - **Se usa sin crear cuenta**: entras y empiezas a cargar ramos. La cuenta es opcional
+- Tema claro, oscuro o el del sistema, recordado entre visitas
 - Registro e inicio de sesión con contraseñas hasheadas (bcrypt) y JWT
 - CRUD de ramos y de evaluaciones
 - Promedio ponderado por ramo y promedio general
@@ -50,6 +51,23 @@ cada push. Si tocas una sola, el CI se cae.
 ```bash
 node scripts/check-grades-parity.mjs
 ```
+
+## Tema claro y oscuro
+
+El botón de la barra superior rota entre tres estados: **el del sistema** (por defecto),
+claro y oscuro. "El del sistema" no es lo mismo que "claro": respeta lo que la persona ya
+eligió en su computador o teléfono, y los otros dos existen para cuando quiere lo contrario
+de eso solo en esta app.
+
+Todo el color sale de variables CSS definidas en [`styles.css`](client/src/styles.css). El
+tema se elige con un atributo `data-theme` en `<html>`: sin atributo manda
+`prefers-color-scheme`, y con `light` o `dark` manda lo que pidió el usuario.
+
+El detalle que importa es **dónde** se aplica: hay un script inline y síncrono en
+[`index.html`](client/index.html) que lee la preferencia y pone el atributo *antes* de que
+el navegador pinte. Si eso esperara a que React arranque, quien usa tema oscuro vería un
+fogonazo blanco en cada carga. Es la razón de que esas seis líneas no vivan en un
+componente.
 
 ## Cómo se calculan las notas
 
@@ -254,4 +272,4 @@ Casi siempre es `DATABASE_URL`. Los logs de Render (servicio → **Logs**) lo di
 - [ ] Simulador "¿qué pasa si saco X?"
 - [ ] Nota de presentación + examen y eximición
 - [ ] Calendario de evaluaciones próximas
-- [ ] Modo oscuro
+- [x] Tema oscuro

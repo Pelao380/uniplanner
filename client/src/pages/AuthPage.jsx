@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
+import ThemeToggle from '../components/ThemeToggle.jsx';
 
 // "Los 1 ramo(s)" se lee mal. Dos frases completas en vez de una con paréntesis.
 const avisoDeInvitado = (isLogin, n) => {
@@ -78,6 +79,10 @@ export default function AuthPage({ mode }) {
         <p className="muted small">
           <Link to="/">Prefiero usar la app sin cuenta →</Link>
         </p>
+
+        {/* Acá no hay barra superior, así que el selector de tema va dentro
+            de la tarjeta: si no, esta pantalla sería la única sin salida. */}
+        <ThemeToggle />
       </form>
     </div>
   );

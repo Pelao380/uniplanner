@@ -1,5 +1,6 @@
 import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -8,6 +9,7 @@ export default function Layout() {
       <header className="topbar">
         <Link to="/" className="brand">🎓 UniPlanner</Link>
         <div className="topbar-right">
+          <ThemeToggle />
           {user ? (
             <>
               <span>Hola, {user.name.split(' ')[0]}</span>
