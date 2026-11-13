@@ -188,9 +188,34 @@ si alguien vuelve a poner un `await` dentro del `map`, falla ahí y no en produc
 - El token se guarda en `localStorage`: simple y suficiente para este alcance, a cambio de ser vulnerable a XSS. Una cookie `httpOnly` + CSRF sería más robusta.
 
 ## Despliegue
-- **Base de datos:** [Neon](https://neon.tech) o [Supabase](https://supabase.com). Copia la connection string a `DATABASE_URL`.
-- **Backend:** [Render](https://render.com) (Web Service, root `server`, start `npm start`). Variables: `DATABASE_URL`, `JWT_SECRET`, `CLIENT_URL`, `NODE_ENV=production`.
-- **Frontend:** [Vercel](https://vercel.com) (root `client`). Variable: `VITE_API_URL=https://tu-api.onrender.com/api`. El `vercel.json` ya incluye el rewrite para React Router.
+
+- **Base de datos:** [Neon](https://neon.tech). Usa la connection string **pooled** (la que
+  lleva `-pooler` en el host) y pégala completa en `DATABASE_URL`, desde `postgresql://`
+  hasta el final, sin comillas ni espacios.
+- **Backend:** [Render](https://render.com). El [`render.yaml`](render.yaml) deja el servicio
+  configurado: solo hay que pegar `DATABASE_URL` y `CLIENT_URL` cuando los pida. `JWT_SECRET`
+  lo genera Render.
+- **Frontend:** [Vercel](https://vercel.com), root `client`, variable
+  `VITE_API_URL=https://tu-api.onrender.com/api` (con el `/api` al final). El
+  [`vercel.json`](client/vercel.json) ya trae el rewrite para React Router.
+- **CORS:** `CLIENT_URL` es el origen de Vercel **sin ruta ni barra final**
+  (`https://tu-app.vercel.app`). Se compara exacto; con una barra de más, la API responde 403.
+
+> ⏱️ **Arranque en frío:** en el plan gratuito de Render el servicio se duerme cuando nadie
+> lo usa y la primera petición puede tardar ~50 segundos. Como la app funciona sin cuenta,
+> eso solo lo nota quien se registra o inicia sesión: abrir la demo y cargar ramos es
+> instantáneo porque no pasa por el servidor.
+
+### Si el registro o el login devuelven 500
+
+Casi siempre es `DATABASE_URL`. Los logs de Render (servicio → **Logs**) lo dicen en una línea:
+
+| En el log | Qué pasó |
+|---|---|
+| `getaddrinfo ENOTFOUND <algo>` | La URL no apunta a Neon: ese host no existe. Vuelve a copiar la connection string. |
+| `password authentication failed` | La URL está bien pero la clave no. Cópiala de nuevo, entera. |
+| `relation "users" does not exist` | Falta correr `npm run db:init` contra esa base. |
+| `ETIMEDOUT` | El host existe pero no responde. Revisa que sea el endpoint pooled. |
 
 ## Próximas mejoras
 - [x] Tests del cálculo de notas (Vitest)
