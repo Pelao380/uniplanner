@@ -103,6 +103,9 @@ h1, h2 { margin: 0 0 .25rem; }
 
 .container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
 .center { text-align: center; margin-top: 4rem; }
+/* El aviso de "despertando" es un párrafo largo: centrado y a todo el ancho
+   de la pantalla se lee pésimo. */
+.center .nota { max-width: 420px; margin: 1.25rem auto 0; text-align: left; }
 .muted { color: var(--muted); margin: 0; }
 .small { font-size: .85rem; }
 .error { color: var(--bad); }

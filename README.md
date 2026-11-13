@@ -256,9 +256,15 @@ Las dos excepciones:
   al guardarlas.
 
 > ⏱️ **Arranque en frío:** en el plan gratuito de Render el servicio se duerme cuando nadie
-> lo usa y la primera petición puede tardar ~50 segundos. Como la app funciona sin cuenta,
-> eso solo lo nota quien se registra o inicia sesión: abrir la demo y cargar ramos es
-> instantáneo porque no pasa por el servidor.
+> lo usa. Medido: **22,8 segundos** la primera petición, **0,24 s** las siguientes. Como la
+> app funciona sin cuenta, eso solo lo nota quien se registra o inicia sesión: abrir la demo
+> y cargar ramos es instantáneo porque no pasa por el servidor.
+>
+> La interfaz lo dice en vez de quedarse colgada. Si una petición pasa de 2,5 segundos,
+> [`AvisoDespertando`](client/src/components/AvisoDespertando.jsx) explica que el servidor
+> está despertando. No acelera nada, pero medio minuto con un botón que dice "Enviando…" y
+> nada más se lee como que la app se rompió, y la gente cierra la pestaña. Con una API
+> despierta el aviso no alcanza a aparecer.
 
 ### Si el registro o el login devuelven 500
 

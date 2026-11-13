@@ -16,11 +16,19 @@ async function request(path, { method = 'GET', body } = {}) {
   const token = tokenStore.get();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  // fetch solo lanza si no llegó a haber respuesta: sin internet, servidor
+  // caído, DNS que no resuelve. El mensaje que trae es "Failed to fetch", en
+  // inglés y sin decir nada útil, así que no se le muestra al usuario.
+  let res;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+  }
 
   // Teníamos token y el servidor lo rechazó: expiró o es inválido.
   if (res.status === 401 && token) {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
+import AvisoDespertando from '../components/AvisoDespertando.jsx';
 import ThemeToggle from '../components/ThemeToggle.jsx';
 
 // "Los 1 ramo(s)" se lee mal. Dos frases completas en vez de una con paréntesis.
@@ -65,6 +66,7 @@ export default function AuthPage({ mode }) {
         </label>
 
         {error && <p className="error">{error}</p>}
+        <AvisoDespertando esperando={submitting} />
         <button className="btn" disabled={submitting}>
           {submitting ? 'Enviando…' : isLogin ? 'Entrar' : 'Registrarme'}
         </button>
