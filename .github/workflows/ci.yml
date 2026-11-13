@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  server:
+    name: API (tests)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: uniplanner
+          POSTGRES_PASSWORD: uniplanner
+          # Los tests de integración hacen TRUNCATE: esta base existe solo para eso.
+          POSTGRES_DB: uniplanner_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22 trae npm 10, que no bloquea los scripts de instalación.
+          # Con npm 11+ hay que aprobar el de esbuild (ver README).
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+
+      - name: Tests (unitarios + integración)
+        run: npm test
+        env:
+          # setup.js copia esta URL sobre DATABASE_URL. No hace falta ningún
+          # secreto: JWT_SECRET lo genera el propio setup para los tests.
+          TEST_DATABASE_URL: postgres://uniplanner:uniplanner@localhost:5432/uniplanner_test
+
+  client:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
