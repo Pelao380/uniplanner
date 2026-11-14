@@ -424,4 +424,91 @@ conBase('API de UniPlanner', () => {
       expect((await intentar()).status).toBe(429);
     });
   });
+
+  describe('examen y eximición', () => {
+    it('guarda los dos datos en el ramo y los devuelve', async () => {
+      const token = await registrar(20);
+      const creado = await request(app)
+        .post('/api/courses')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Física II', exam_weight: 30, exemption_grade: 5.0 });
+
+      expect(creado.status).toBe(201);
+      expect(Number(creado.body.exam_weight)).toBe(30);
+      expect(Number(creado.body.exemption_grade)).toBe(5.0);
+    });
+
+    it('calcula la nota que falta en el examen', async () => {
+      const token = await registrar(21);
+      const ramo = await request(app)
+        .post('/api/courses')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Álgebra', exam_weight: 40 })
+        .then((r) => r.body);
+
+      await request(app)
+        .post(`/api/courses/${ramo.id}/evaluations`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Presentación completa', weight: 100, grade: 3.0 });
+
+      const detalle = await request(app)
+        .get(`/api/courses/${ramo.id}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      // 3.0 × 60% = 1.8; para llegar a 4.0 (3.95 con redondeo) falta 5.4 en el 40%.
+      expect(detalle.body.summary.presentationGrade).toBe(3.0);
+      expect(detalle.body.summary.neededInExam).toBe(5.4);
+      expect(detalle.body.summary.presentationIsFinal).toBe(true);
+    });
+
+    it('un ramo sin examen no trae los campos nuevos en el resumen', async () => {
+      const token = await registrar(22);
+      const ramo = await crearRamo(token, 'Sin examen');
+      const detalle = await request(app)
+        .get(`/api/courses/${ramo.id}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(detalle.body.exam_weight).toBeNull();
+      expect(detalle.body.summary.neededInExam).toBeUndefined();
+    });
+
+    it('rechaza un examen que valga el 100% del ramo', async () => {
+      const token = await registrar(23);
+      const res = await request(app)
+        .post('/api/courses')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Imposible', exam_weight: 100 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('rechaza una nota de eximición fuera de la escala', async () => {
+      const token = await registrar(24);
+      const res = await request(app)
+        .post('/api/courses')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Fuera de escala', exam_weight: 30, exemption_grade: 9 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('el listado también trae la nota del examen', async () => {
+      const token = await registrar(25);
+      const ramo = await request(app)
+        .post('/api/courses')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Química', exam_weight: 30, exemption_grade: 5.0 })
+        .then((r) => r.body);
+
+      await request(app)
+        .post(`/api/courses/${ramo.id}/evaluations`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Certamen', weight: 50, grade: 6.0 });
+
+      const lista = await request(app).get('/api/courses').set('Authorization', `Bearer ${token}`);
+      const suyo = lista.body.find((c) => c.id === ramo.id);
+      expect(suyo.summary.neededForExemption).not.toBeNull();
+      expect(suyo.summary.neededInExamIsProvisional).toBe(true);
+    });
+  });
 });

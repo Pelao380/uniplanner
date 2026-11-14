@@ -51,12 +51,42 @@ const textoOpcional = (v, max) => {
   return s;
 };
 
+// Un número opcional dentro de un rango. Vacío, nulo o ausente significa que
+// el dato no está, no que valga cero.
+const numeroOpcional = (v, { min, max, menorQue, error }) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  const ok = Number.isFinite(n)
+    && (min === undefined || n >= min)
+    && (max === undefined || n <= max)
+    && (menorQue === undefined || n < menorQue);
+  if (!ok) throw new Error(error);
+  return n;
+};
+
 function validarRamo(datos) {
   return {
     name: textoObligatorio(datos.name, 150),
     semester: textoOpcional(datos.semester, 20),
+    // Sin examen los dos quedan en null y el ramo se calcula como siempre.
+    exam_weight: numeroOpcional(datos.exam_weight, {
+      min: 0.01,
+      menorQue: 100,
+      error: 'El examen tiene que valer más que 0% y menos que el 100% del ramo',
+    }),
+    exemption_grade: numeroOpcional(datos.exemption_grade, {
+      min: MIN_GRADE,
+      max: MAX_GRADE,
+      error: `La nota de eximición debe estar entre ${MIN_GRADE.toFixed(1)} y ${MAX_GRADE.toFixed(1)}`,
+    }),
   };
 }
+
+// Los dos datos del examen, con los nombres que usa el cálculo.
+const examenDe = (curso) => ({
+  examWeight: curso.exam_weight,
+  exemptionGrade: curso.exemption_grade,
+});
 
 function validarEvaluacion(datos) {
   const weight = Number(datos.weight);
@@ -110,7 +140,7 @@ export const local = {
     const d = leer();
     return [...d.courses]
       .sort((a, b) => (a.created_at === b.created_at ? b.id - a.id : a.created_at < b.created_at ? 1 : -1))
-      .map((c) => ({ ...c, summary: summarize(evaluacionesDe(d, c.id)) }));
+      .map((c) => ({ ...c, summary: summarize(evaluacionesDe(d, c.id), examenDe(c)) }));
   },
 
   async getCourse(id) {
@@ -118,7 +148,7 @@ export const local = {
     const curso = buscarRamo(d, id);
     if (!curso) sinRamo();
     const evaluations = evaluacionesDe(d, curso.id);
-    return { ...curso, evaluations, summary: summarize(evaluations) };
+    return { ...curso, evaluations, summary: summarize(evaluations, examenDe(curso)) };
   },
 
   async createCourse(datos) {
@@ -127,7 +157,7 @@ export const local = {
     d.nextId += 1;
     d.courses.push(curso);
     escribir(d);
-    return { ...curso, summary: summarize([]) };
+    return { ...curso, summary: summarize([], examenDe(curso)) };
   },
 
   async updateCourse(id, datos) {
@@ -205,7 +235,14 @@ export const invitado = {
   contenido() {
     const d = leer();
     return d.courses.map((c) => ({
-      curso: { name: c.name, semester: c.semester },
+      curso: {
+        name: c.name,
+        semester: c.semester,
+        // Si configuró examen sin cuenta, se sube con el ramo: si no, al
+        // crear la cuenta perdería la nota que necesitaba en el examen.
+        exam_weight: c.exam_weight ?? null,
+        exemption_grade: c.exemption_grade ?? null,
+      },
       evaluaciones: evaluacionesDe(d, c.id).map((e) => ({
         name: e.name, weight: e.weight, grade: e.grade, due_date: e.due_date,
       })),

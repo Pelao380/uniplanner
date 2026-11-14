@@ -19,7 +19,37 @@ const round2 = (n) => Math.round(n * 100) / 100;
 // Techo a un decimal: nunca prometemos una nota más baja que la realmente necesaria.
 const ceil1 = (n) => Math.ceil(n * 10 - EPSILON) / 10;
 
-export function summarize(evaluations) {
+// El mismo redondeo que para aprobar, aplicado a cualquier umbral: si te eximes
+// con 5.0 y sacas 4.95, la universidad informa 5.0 y te eximes.
+const umbralReal = (nota) => (ROUNDS_FINAL_GRADE ? nota - 0.05 : nota);
+
+// Un examen solo cuenta si vale algo y no lo vale todo. Fuera de ese rango el
+// ramo simplemente no tiene examen y el cálculo es el de siempre.
+function normalizarExamen(examen) {
+  const weight = Number(examen?.examWeight);
+  if (!Number.isFinite(weight) || weight <= 0 || weight >= 100) return null;
+  const umbral = Number(examen?.exemptionGrade);
+  return {
+    examWeight: round2(weight),
+    // Sin nota de eximición el ramo igual tiene examen: lo rinde todo el mundo.
+    exemptionGrade: Number.isFinite(umbral) && umbral >= MIN_GRADE && umbral <= MAX_GRADE
+      ? round1(umbral)
+      : null,
+  };
+}
+
+// `examen` es opcional: { examWeight, exemptionGrade }.
+//
+// Sin examen, las ponderaciones de las evaluaciones son el 100% del ramo y el
+// resultado es exactamente el de siempre.
+//
+// Con examen, ese 100% pasa a ser la NOTA DE PRESENTACIÓN, y la final sale de
+// combinarla con el examen:
+//
+//     final = presentación × (100 − examWeight)%  +  examen × examWeight%
+//
+// salvo que te eximas, en cuyo caso la presentación es la nota final.
+export function summarize(evaluations, examen) {
   const graded = evaluations.filter((e) => e.grade !== null && e.grade !== undefined);
   const totalWeight = evaluations.reduce((s, e) => s + Number(e.weight), 0);
   const gradedWeight = graded.reduce((s, e) => s + Number(e.weight), 0);
@@ -53,12 +83,93 @@ export function summarize(evaluations) {
     }
   }
 
-  return {
+  const base = {
     currentAverage,
     totalWeight: round2(totalWeight),
     gradedWeight: round2(gradedWeight),
     remainingWeight,
     neededToPass,
+    status,
+  };
+
+  const conExamen = normalizarExamen(examen);
+  if (!conExamen) return base;
+
+  return { ...base, ...resolverExamen(base, { weightedSum, gradedWeight, remainingWeight }, conExamen) };
+}
+
+// Todo lo que el examen agrega encima del cálculo de la presentación.
+function resolverExamen(base, acumulado, { examWeight, exemptionGrade }) {
+  const { weightedSum, gradedWeight, remainingWeight } = acumulado;
+  const pesoExamen = examWeight / 100;
+  const pesoPresentacion = 1 - pesoExamen;
+
+  // La presentación está cerrada cuando ya se rindió el 100% de las evaluaciones.
+  const presentationIsFinal = gradedWeight > 0 && remainingWeight <= 0;
+  // Se usa la presentación REDONDEADA porque es la que informa la universidad
+  // y la que el usuario ve en pantalla: con 4.94 el cálculo parte de 4.9.
+  const presentation = base.currentAverage;
+
+  // --- ¿Se exime? ---
+  let exempt = null;
+  let neededForExemption = null;
+
+  if (exemptionGrade !== null) {
+    const umbral = umbralReal(exemptionGrade);
+    if (presentationIsFinal) {
+      exempt = weightedSum / gradedWeight >= umbral;
+    } else {
+      // Todavía no: falta rendir. Lo útil es cuánto necesita en lo que queda.
+      exempt = false;
+      const raw = (umbral * 100 - weightedSum) / remainingWeight;
+      if (raw <= MIN_GRADE) neededForExemption = MIN_GRADE;
+      else if (raw <= MAX_GRADE) neededForExemption = ceil1(raw);
+      // Si pasa de 7.0, eximirse ya no es posible y queda en null.
+    }
+  }
+
+  // --- ¿Qué nota necesita en el examen? ---
+  // Con la presentación incompleta el número igual se calcula, pero sobre lo
+  // que lleva hasta ahora: por eso va marcado como provisional.
+  let neededInExam = null;
+  let examStatus = null;
+
+  if (presentation !== null && exempt !== true) {
+    const raw = (PASSING_THRESHOLD - presentation * pesoPresentacion) / pesoExamen;
+    if (raw > MAX_GRADE) examStatus = 'imposible';
+    else if (raw <= MIN_GRADE) {
+      examStatus = 'asegurado';
+      neededInExam = MIN_GRADE;
+    } else {
+      examStatus = 'en-curso';
+      neededInExam = ceil1(raw);
+    }
+  }
+
+  // --- Estado del ramo, que ahora lo decide el examen y no la presentación ---
+  let status;
+  if (gradedWeight === 0) {
+    status = 'sin-notas';
+  } else if (!presentationIsFinal) {
+    // Mientras falten notas de presentación nada está decidido: hasta un
+    // "imposible" del examen puede darse vuelta con las que faltan.
+    status = 'en-curso';
+  } else if (exempt === true) {
+    status = presentation >= PASSING_THRESHOLD ? 'aprobado' : 'reprobado';
+  } else {
+    status = examStatus;
+  }
+
+  return {
+    examWeight,
+    exemptionGrade,
+    presentationGrade: presentation,
+    presentationIsFinal,
+    exempt,
+    neededForExemption,
+    neededInExam,
+    // El número de arriba va a cambiar con las notas que falten declarar.
+    neededInExamIsProvisional: !presentationIsFinal,
     status,
   };
 }

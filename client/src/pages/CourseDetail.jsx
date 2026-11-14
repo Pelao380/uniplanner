@@ -43,6 +43,8 @@ export default function CourseDetail() {
         key={`${id}-${esInvitado}`}
         course={course}
         idDelRamo={async () => id}
+        guardarExamen={(campos) =>
+          db.updateCourse(id, { name: course.name, semester: course.semester, ...campos })}
         onCambio={load}
       />
     </>

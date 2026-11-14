@@ -219,3 +219,10 @@ th { font-size: .8rem; color: var(--muted); text-transform: uppercase; }
   .topbar-right { gap: .5rem; }
   .topbar-right .btn { padding: .45rem .7rem; font-size: .85rem; }
 }
+
+/* Configuración del examen. Va arriba de todo porque cambia el significado de
+   lo de abajo, pero es un ajuste del ramo y no el dato principal: por eso el
+   botón es fantasma y la explicación va en gris. */
+.examen-config .form-grid { margin-bottom: .6rem; }
+.examen-config p { margin: 0; }
+.aviso-provisional { margin: 0 0 1rem; }

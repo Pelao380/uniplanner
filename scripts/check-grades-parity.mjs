@@ -24,6 +24,21 @@ const rnd = () => {
 const entre = (a, b) => a + rnd() * (b - a);
 const nota = () => Math.round(entre(1, 7) * 10) / 10;
 
+// Un examen al azar. Casi la mitad de las veces no hay, porque un ramo sin
+// examen sigue siendo el caso normal y es el que no puede cambiar de resultado.
+// También salen umbrales fuera de escala y pesos de 0 y 100, que el cálculo
+// tiene que descartar igual en los dos lados.
+function examenAlAzar() {
+  const r = rnd();
+  if (r < 0.40) return undefined;
+  if (r < 0.45) return null;
+  if (r < 0.50) return {};
+  if (r < 0.55) return { examWeight: rnd() < 0.5 ? 0 : 100 };
+  const examWeight = Math.round(entre(0.01, 99.99) * 100) / 100;
+  if (r < 0.75) return { examWeight };
+  return { examWeight, exemptionGrade: rnd() < 0.15 ? Math.round(entre(7.1, 10) * 10) / 10 : nota() };
+}
+
 function casoAlAzar() {
   const n = Math.floor(rnd() * 7); // 0 a 6 evaluaciones
   const evs = [];
@@ -38,11 +53,11 @@ function casoAlAzar() {
     // Un tercio de las evaluaciones queda sin nota (pendiente).
     evs.push({ weight: w, grade: rnd() < 0.33 ? null : nota() });
   }
-  return evs;
+  return [evs, examenAlAzar()];
 }
 
 // --- Casos de borde escritos a mano, además de los aleatorios ---
-const bordes = [
+const evaluacionesBorde = [
   [],
   [{ weight: 100, grade: null }],
   [{ weight: 100, grade: 4.0 }],
@@ -55,16 +70,33 @@ const bordes = [
   [{ weight: 0.01, grade: 7.0 }],
   [{ weight: 99.99, grade: 4.0 }],
   [{ weight: 60, grade: 3.95 }, { weight: 40, grade: 3.95 }],  // el límite del redondeo
+  [{ weight: 100, grade: 4.95 }],                              // el límite de la eximición
 ];
 
-const casos = [...bordes];
+// Cada borde se prueba sin examen y con exámenes de todo tipo, incluidos los
+// que hay que ignorar (peso 0 o 100, umbral fuera de la escala).
+const examenesBorde = [
+  undefined, null, {},
+  { examWeight: 0 }, { examWeight: 100 }, { examWeight: -5 },
+  { examWeight: 30 }, { examWeight: 40 },
+  { examWeight: 30, exemptionGrade: 5.0 },
+  { examWeight: 40, exemptionGrade: 5.5 },
+  { examWeight: 30, exemptionGrade: 9.9 },   // fuera de escala: se ignora
+  { examWeight: 0.01, exemptionGrade: 7.0 },
+  { examWeight: 99.99, exemptionGrade: 1.0 },
+];
+
+const casos = [];
+for (const evs of evaluacionesBorde) {
+  for (const examen of examenesBorde) casos.push([evs, examen]);
+}
 for (let i = 0; i < 20000; i += 1) casos.push(casoAlAzar());
 
-for (const [i, evs] of casos.entries()) {
-  const a = JSON.stringify(servidor.summarize(evs));
-  const b = JSON.stringify(cliente.summarize(evs));
+for (const [i, [evs, examen]] of casos.entries()) {
+  const a = JSON.stringify(servidor.summarize(evs, examen));
+  const b = JSON.stringify(cliente.summarize(evs, examen));
   if (a !== b) {
-    falla(`caso ${i} ${JSON.stringify(evs)}\n    servidor: ${a}\n    cliente:  ${b}`);
+    falla(`caso ${i} ${JSON.stringify(evs)} examen=${JSON.stringify(examen)}\n    servidor: ${a}\n    cliente:  ${b}`);
     if (fallas > 5) break;
   }
 }

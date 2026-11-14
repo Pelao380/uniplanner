@@ -6,9 +6,32 @@ import { summarize, MIN_GRADE, MAX_GRADE } from '../grades.js';
 
 const router = Router();
 
+// El examen es opcional: un ramo sin examen deja los dos campos en null y se
+// calcula como siempre. La interfaz manda "" cuando el campo está vacío.
+const vacioEsNulo = (v) => (v === '' || v === undefined ? null : v);
+
 const courseSchema = z.object({
   name: z.string().trim().min(1, 'El nombre es obligatorio').max(150),
   semester: z.string().trim().max(20).optional().nullable(),
+  // Cuánto del ramo vale el examen. No puede valer el 100%: entonces la
+  // presentación no existiría y no habría nada que ponderar.
+  exam_weight: z.preprocess(vacioEsNulo, z.coerce
+    .number()
+    .gt(0, 'El examen tiene que valer más que 0%')
+    .lt(100, 'El examen no puede valer el 100% del ramo')
+    .nullable()),
+  // Nota de presentación desde la cual uno se exime de rendirlo.
+  exemption_grade: z.preprocess(vacioEsNulo, z.coerce
+    .number()
+    .min(MIN_GRADE)
+    .max(MAX_GRADE)
+    .nullable()),
+});
+
+// Los dos datos del examen, con los nombres que usa el cálculo.
+const examenDe = (course) => ({
+  examWeight: course.exam_weight,
+  exemptionGrade: course.exemption_grade,
 });
 
 const evaluationSchema = z.object({
@@ -68,32 +91,35 @@ router.get('/', asyncHandler(async (req, res) => {
       ORDER BY c.created_at DESC`,
     [req.userId]
   );
-  res.json(rows.map(({ evaluations, ...course }) => ({ ...course, summary: summarize(evaluations) })));
+  res.json(rows.map(({ evaluations, ...course }) => ({
+    ...course,
+    summary: summarize(evaluations, examenDe(course)),
+  })));
 }));
 
 router.post('/', validate(courseSchema), asyncHandler(async (req, res) => {
-  const { name, semester } = req.body;
+  const { name, semester, exam_weight, exemption_grade } = req.body;
   const { rows } = await query(
-    `INSERT INTO courses (user_id, name, semester)
-     VALUES ($1, $2, $3) RETURNING *`,
-    [req.userId, name, semester || null]
+    `INSERT INTO courses (user_id, name, semester, exam_weight, exemption_grade)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [req.userId, name, semester || null, exam_weight, exemption_grade]
   );
-  res.status(201).json({ ...rows[0], summary: summarize([]) });
+  res.status(201).json({ ...rows[0], summary: summarize([], examenDe(rows[0])) });
 }));
 
 router.get('/:id', courseParams, asyncHandler(async (req, res) => {
   const course = await findOwnedCourse(req.params.id, req.userId);
   if (!course) return res.status(404).json({ error: 'Ramo no encontrado' });
   const evaluations = await getEvaluations(course.id);
-  res.json({ ...course, evaluations, summary: summarize(evaluations) });
+  res.json({ ...course, evaluations, summary: summarize(evaluations, examenDe(course)) });
 }));
 
 router.put('/:id', courseParams, validate(courseSchema), asyncHandler(async (req, res) => {
-  const { name, semester } = req.body;
+  const { name, semester, exam_weight, exemption_grade } = req.body;
   const { rows } = await query(
-    `UPDATE courses SET name = $1, semester = $2
-     WHERE id = $3 AND user_id = $4 RETURNING *`,
-    [name, semester || null, req.params.id, req.userId]
+    `UPDATE courses SET name = $1, semester = $2, exam_weight = $3, exemption_grade = $4
+     WHERE id = $5 AND user_id = $6 RETURNING *`,
+    [name, semester || null, exam_weight, exemption_grade, req.params.id, req.userId]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Ramo no encontrado' });
   res.json(rows[0]);

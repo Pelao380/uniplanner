@@ -109,6 +109,28 @@ La nota necesaria siempre se redondea **hacia arriba**, para no prometer una not
 
 Estados posibles de un ramo: `sin-notas`, `en-curso`, `asegurado` (apruebas pase lo que pase), `imposible` (ni un 7.0 en lo que queda alcanza), `aprobado`, `reprobado`.
 
+### Examen y eximición
+
+Un ramo puede tener examen final, y entonces el 100% de sus evaluaciones deja de ser el
+ramo entero y pasa a ser la **nota de presentación**:
+
+```
+final = presentación × (100 − examen)%  +  examen × examen%
+```
+
+Son dos datos del ramo, los dos opcionales: con qué nota te eximes y cuánto vale el
+examen. **Si los dejas vacíos el ramo no tiene examen** y se calcula exactamente como
+antes — de ahí que los ramos que ya existían no cambien de resultado.
+
+Con examen, la app responde las dos preguntas que importan: qué nota necesitas en lo que
+te queda **para eximirte**, y qué nota necesitas **en el examen** para llegar a 4.0. La
+segunda se muestra desde la primera nota, marcada como provisional mientras falten
+evaluaciones por rendir, porque la presentación todavía puede moverse.
+
+Eximirse usa el mismo redondeo que aprobar: si te eximes con 5.0, un 4.95 de presentación
+te exime. Y mientras la presentación no esté cerrada el ramo queda `en-curso` aunque la
+cuenta de hoy diga `imposible`: con las notas que faltan todavía puede darse vuelta.
+
 ## Stack
 | Capa | Tecnología |
 |---|---|
@@ -270,9 +292,15 @@ Las dos excepciones:
   npm run db:migrate    # dentro de server/, con DATABASE_URL apuntando a la base
   ```
 
-  **Primero despliega el código, después migra.** Si borras una columna mientras Render
-  sigue sirviendo la versión anterior, esa versión seguirá pidiéndosela a Postgres y cada
-  petición que la toque responderá 500 hasta que termine el despliegue.
+  **El orden importa, y depende de lo que haga la migración.** La regla de fondo es que el
+  esquema tiene que servirle a las dos versiones a la vez, porque durante el despliegue
+  conviven un rato:
+
+  - **Si la migración borra algo, despliega primero.** Si borras una columna mientras Render
+    sigue sirviendo la versión anterior, esa versión seguirá pidiéndosela a Postgres y cada
+    petición que la toque responderá 500 hasta que termine el despliegue. Así fue la 001.
+  - **Si la migración agrega algo, migra primero.** El código nuevo nombra las columnas
+    nuevas desde el primer minuto; el viejo simplemente las ignora. Así fue la 002.
 - **`VITE_API_URL` se hornea en el build.** Las variables `VITE_*` no se leen en tiempo de
   ejecución: Vite las reemplaza por su valor al compilar. Si la cambias en Vercel, hay que
   volver a desplegar para que surta efecto. Las del backend no: Render reinicia el servicio
@@ -309,8 +337,8 @@ Casi siempre es `DATABASE_URL`. Los logs de Render (servicio → **Logs**) lo di
 - [x] Usar la app sin cuenta, con los datos en el navegador
 - [x] Sin cuenta, calculadora directa: la cuenta es la que desbloquea varios ramos
 - [x] Tema claro, oscuro o el del sistema
+- [x] Nota de presentación + examen y eximición
 - [ ] Renombrar un ramo desde la interfaz (la API ya lo permite, falta el botón)
 - [ ] Créditos/SCT por ramo para un promedio general ponderado
 - [ ] Simulador "¿qué pasa si saco X?"
-- [ ] Nota de presentación + examen y eximición
 - [ ] Calendario de evaluaciones próximas

@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS courses (
   user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name       VARCHAR(150) NOT NULL,
   semester   VARCHAR(20),
+  -- Examen final. NULL en los dos = el ramo no tiene examen y las
+  -- ponderaciones de sus evaluaciones son el 100% de la nota.
+  exam_weight     NUMERIC(5,2) CHECK (exam_weight > 0 AND exam_weight < 100),
+  exemption_grade NUMERIC(2,1) CHECK (exemption_grade >= 1.0 AND exemption_grade <= 7.0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

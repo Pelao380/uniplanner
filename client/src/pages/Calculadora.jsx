@@ -42,6 +42,17 @@ export default function Calculadora() {
     return creado.id;
   };
 
+  // Configurar el examen también cuenta como "algo que guardar", así que crea
+  // el ramo si todavía no existe.
+  const guardarExamen = async (campos) => {
+    const id = await idDelRamo();
+    await db.updateCourse(id, {
+      name: ramo.name ?? NOMBRE_IMPLICITO,
+      semester: ramo.semester ?? null,
+      ...campos,
+    });
+  };
+
   if (error && !ramo) return <p className="error" role="alert">{error}</p>;
   if (!ramo) return <p>Cargando…</p>;
 
@@ -54,7 +65,7 @@ export default function Calculadora() {
         </div>
       </div>
 
-      <Evaluaciones course={ramo} idDelRamo={idDelRamo} onCambio={cargar} />
+      <Evaluaciones course={ramo} idDelRamo={idDelRamo} guardarExamen={guardarExamen} onCambio={cargar} />
 
       <p className="nota">
         Esto se guarda <strong>solo en este navegador</strong>.{' '}

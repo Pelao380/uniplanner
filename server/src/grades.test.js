@@ -144,3 +144,122 @@ describe('summarize — datos inválidos que ya existan en la base', () => {
     expect(s.status).toBe('aprobado');
   });
 });
+
+// --- Examen y eximición -------------------------------------------------
+//
+// Con examen, el 100% de las evaluaciones deja de ser el ramo y pasa a ser la
+// NOTA DE PRESENTACIÓN. La final combina las dos:
+//     final = presentación × (100 − examWeight)% + examen × examWeight%
+
+const conExamen = (weight, eximicion = null) => ({ examWeight: weight, exemptionGrade: eximicion });
+
+describe('summarize — sin examen se comporta igual que antes', () => {
+  it('un examen de 0%, nulo o de 100% es como no tener examen', () => {
+    const esperado = JSON.stringify(summarize([ev(50, 5.0), ev(50, 3.0)]));
+    for (const examen of [undefined, null, {}, conExamen(0), conExamen(null), conExamen(100)]) {
+      expect(JSON.stringify(summarize([ev(50, 5.0), ev(50, 3.0)], examen))).toBe(esperado);
+    }
+  });
+
+  it('sin examen no aparece ninguno de los campos nuevos', () => {
+    const s = summarize([ev(100, 5.0)]);
+    expect(s.neededInExam).toBeUndefined();
+    expect(s.exempt).toBeUndefined();
+  });
+});
+
+describe('summarize — nota necesaria en el examen', () => {
+  it('calcula la nota exacta que falta para llegar a 4.0', () => {
+    // Presentación 3.0 con el 60% del peso, examen 40%:
+    //   3.0 × 0.6 = 1.8, faltan 2.15 de los 4.0 (menos el redondeo) -> 5.375
+    const s = summarize([ev(100, 3.0)], conExamen(40));
+    expect(s.presentationGrade).toBe(3.0);
+    expect(s.presentationIsFinal).toBe(true);
+    expect(s.neededInExam).toBe(5.4); // techo: con 5.3 no alcanza
+    expect(s.status).toBe('en-curso');
+  });
+
+  it('la nota que promete de verdad alcanza, y una décima menos no', () => {
+    for (const [presentacion, peso] of [[3.0, 40], [2.5, 50], [4.0, 30], [1.9, 45]]) {
+      const { neededInExam } = summarize([ev(100, presentacion)], conExamen(peso));
+      const final = (nota) => presentacion * (1 - peso / 100) + nota * (peso / 100);
+      expect(final(neededInExam)).toBeGreaterThanOrEqual(PASSING_GRADE - 0.05);
+      expect(final(neededInExam - 0.1)).toBeLessThan(PASSING_GRADE - 0.05);
+    }
+  });
+
+  it('con la presentación muy baja ni un 7.0 en el examen salva el ramo', () => {
+    const s = summarize([ev(100, 1.5)], conExamen(30));
+    expect(s.status).toBe('imposible');
+    expect(s.neededInExam).toBeNull();
+  });
+
+  it('con la presentación alta el examen ya no puede reprobarte', () => {
+    const s = summarize([ev(100, 5.5)], conExamen(30));
+    expect(s.status).toBe('asegurado');
+    expect(s.neededInExam).toBe(MIN_GRADE);
+  });
+
+  it('marca la nota como provisional mientras falten evaluaciones', () => {
+    const s = summarize([ev(40, 6.0), ev(60)], conExamen(30));
+    expect(s.presentationIsFinal).toBe(false);
+    expect(s.neededInExamIsProvisional).toBe(true);
+    expect(s.neededInExam).not.toBeNull();
+    // Nada está decidido todavía, aunque la cuenta de hoy diga "asegurado".
+    expect(s.status).toBe('en-curso');
+  });
+
+  it('sin ninguna nota todavía no hay nada que proyectar', () => {
+    const s = summarize([ev(100)], conExamen(30));
+    expect(s.neededInExam).toBeNull();
+    expect(s.status).toBe('sin-notas');
+  });
+});
+
+describe('summarize — eximición', () => {
+  it('dice qué nota falta en lo que queda para eximirse', () => {
+    // Umbral 5.0 (4.95 real con redondeo), 50% rendido con 5.0:
+    //   (4.95×100 − 250) / 50 = 4.9
+    const s = summarize([ev(50, 5.0), ev(50)], conExamen(30, 5.0));
+    expect(s.neededForExemption).toBe(4.9);
+    expect(s.exempt).toBe(false);
+  });
+
+  it('la nota que promete para eximirse de verdad exime', () => {
+    const s = summarize([ev(50, 5.0), ev(50)], conExamen(30, 5.0));
+    const cerrado = summarize([ev(50, 5.0), ev(50, s.neededForExemption)], conExamen(30, 5.0));
+    expect(cerrado.exempt).toBe(true);
+    expect(cerrado.status).toBe('aprobado');
+  });
+
+  it('exime con el redondeo a favor, igual que para aprobar', () => {
+    expect(summarize([ev(100, 4.95)], conExamen(30, 5.0)).exempt).toBe(true);
+    expect(summarize([ev(100, 4.9)], conExamen(30, 5.0)).exempt).toBe(false);
+  });
+
+  it('si eximirse ya es imposible no promete una nota', () => {
+    const s = summarize([ev(80, 2.0), ev(20)], conExamen(30, 5.5));
+    expect(s.neededForExemption).toBeNull();
+    expect(s.exempt).toBe(false);
+  });
+
+  it('eximido no rinde examen: la presentación es la nota final', () => {
+    const s = summarize([ev(100, 6.0)], conExamen(40, 5.0));
+    expect(s.exempt).toBe(true);
+    expect(s.neededInExam).toBeNull();
+    expect(s.status).toBe('aprobado');
+  });
+
+  it('un examen sin nota de eximición lo rinde todo el mundo', () => {
+    const s = summarize([ev(100, 6.5)], conExamen(30));
+    expect(s.exempt).toBeNull();
+    expect(s.neededForExemption).toBeNull();
+    expect(s.neededInExam).toBe(MIN_GRADE); // con 6.5 de presentación, ya está
+  });
+
+  it('ignora umbrales fuera de la escala', () => {
+    expect(summarize([ev(100, 5.0)], conExamen(30, 9.0)).exemptionGrade).toBeNull();
+    expect(summarize([ev(100, 5.0)], conExamen(30, 0)).exemptionGrade).toBeNull();
+    expect(summarize([ev(100, 5.0)], conExamen(30, MAX_GRADE)).exemptionGrade).toBe(MAX_GRADE);
+  });
+});
