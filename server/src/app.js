@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
 import courseRoutes from './routes/courses.js';
+import evaluationRoutes from './routes/evaluations.js';
 import { requireAuth } from './middleware.js';
 
 // Límites por defecto del rate limiter. Los tests los suben para no chocar
@@ -72,6 +73,7 @@ export function createApp({ rateLimits = {}, trustProxy = false } = {}) {
   app.use('/api/auth/register', limiter(limits.register));
   app.use('/api/auth', limiter(limits.auth), authRoutes);
   app.use('/api/courses', requireAuth, courseRoutes);
+  app.use('/api/evaluations', requireAuth, evaluationRoutes);
 
   app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 

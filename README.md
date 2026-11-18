@@ -27,6 +27,7 @@ Y en oscuro, que es cuando uno suele estar calculando esto:
 - Detecta cuando la aprobación ya está asegurada o ya no alcanza
 - Rechaza ponderaciones que superen el 100%
 - Cada usuario solo puede ver y modificar sus propios datos
+- **App Android** (React Native + Expo) con la misma cuenta: futuras evaluaciones y recordatorios la víspera de cada una
 
 ## Usar sin cuenta
 
@@ -61,21 +62,73 @@ según si hay sesión. Las páginas no saben con cuál están hablando.
 > `local.js` repite a mano las validaciones y los mensajes de error del servidor. Es
 > deliberado: si no, la app se comportaría distinto según si tienes cuenta o no.
 
-### Una lógica, dos copias
+### Una lógica, tres copias
 
 El cálculo de notas vive en [`server/src/grades.js`](server/src/grades.js) y, copiado,
-en [`client/src/grades.js`](client/src/grades.js): el modo invitado lo necesita en el
-navegador. Un paquete compartido obligaría a configurar el build de Vercel para leer
+en [`client/src/grades.js`](client/src/grades.js) (el modo invitado lo necesita en el
+navegador) y en [`mobile/src/grades.js`](mobile/src/grades.js) (la app recalcula en el
+teléfono, sin esperar a la API). Un paquete compartido obligaría a configurar el build de Vercel para leer
 archivos fuera de `client/`, y son 60 líneas de aritmética pura.
 
 El riesgo de copiar es que las dos versiones se separen, así que
-[`scripts/check-grades-parity.mjs`](scripts/check-grades-parity.mjs) compara las dos
+[`scripts/check-grades-parity.mjs`](scripts/check-grades-parity.mjs) compara las tres
 implementaciones con 20.000 casos generados más una docena escritos a mano, y corre en
 cada push. Si tocas una sola, el CI se cae.
 
 ```bash
 node scripts/check-grades-parity.mjs
 ```
+
+## App móvil (Android)
+
+En [`mobile/`](mobile/) vive la app para Android, hecha con React Native y Expo. Usa
+la misma API y la misma cuenta que la web: lo que agregas en un lado aparece en el otro.
+
+- **Futuras evaluaciones:** todo lo que viene, de todos tus ramos, agrupado en "esta
+  semana", "próxima semana" y "más adelante". Lo de mañana se marca en rojo.
+- **Recordatorios:** la víspera de cada evaluación sin nota, a las 20:00.
+- **Ramos y notas:** lo mismo que en la web, incluido examen y eximición. Acepta coma
+  decimal (`5,5`), que es lo que escribe un teclado en español.
+
+### Por qué los recordatorios son locales y no push
+
+La API corre en el plan gratuito de Render, que la apaga cuando nadie la usa: no podría
+despertar a las 20:00 para mandar un aviso. Así que el servidor no manda nada. Cada vez
+que la app tiene la lista de evaluaciones futuras se la entrega a Android, que agenda
+los avisos y los muestra a la hora exacta, **aunque la app esté cerrada, el teléfono sin
+internet o la API dormida**.
+
+La lista se rehace entera (cancelar todo y volver a agendar) al abrir la app, al
+volver a ella y después de cada cambio. Así una evaluación borrada o cambiada de fecha
+nunca deja un aviso huérfano, y lo que cambiaste desde la web llega en la próxima
+apertura.
+
+### "Hoy" lo decide el teléfono
+
+`GET /api/evaluations/upcoming` recibe la fecha de hoy como parámetro en vez de
+calcularla. La API corre en Virginia (UTC); a las 22:00 en Santiago el servidor ya está
+en el día siguiente y escondería la prueba de esa noche.
+
+### Ejecutar y generar el APK
+
+```bash
+cd mobile
+npm install
+cp .env.example .env      # URL de tu API local (en el teléfono: la IP de tu PC, no localhost)
+npx expo start            # escanea el QR con Expo Go en Android
+```
+
+El APK se compila en la nube con EAS (gratis, sin Android Studio). Antes, pon la URL de
+tu API de Render en `EXPO_PUBLIC_API_URL` dentro de [`mobile/eas.json`](mobile/eas.json):
+
+```bash
+cd mobile
+npx eas-cli@latest login            # una cuenta gratuita de expo.dev
+npm run build:apk                   # al terminar, entrega el link de descarga del .apk
+```
+
+El APK se instala en cualquier Android permitiendo "instalar apps desconocidas". No pasa
+por Google Play, así que no hay costo.
 
 ## Tema claro y oscuro
 
@@ -135,6 +188,7 @@ cuenta de hoy diga `imposible`: con las notas que faltan todavía puede darse vu
 | Capa | Tecnología |
 |---|---|
 | Frontend | React 18, React Router, Vite |
+| Móvil | React Native, Expo (SDK 58), Expo Router, expo-notifications |
 | Backend | Node.js, Express, Zod (validación) |
 | Base de datos | PostgreSQL |
 | Auth | JWT + bcrypt |
@@ -205,7 +259,7 @@ neon databases create --name uniplanner_test
 
 ## API REST
 
-Todas las rutas de `/api/courses` requieren el header `Authorization: Bearer <token>`.
+Todas las rutas de `/api/courses` y `/api/evaluations` requieren el header `Authorization: Bearer <token>`.
 
 | Método | Ruta | Descripción |
 |---|---|---|
@@ -220,6 +274,7 @@ Todas las rutas de `/api/courses` requieren el header `Authorization: Bearer <to
 | POST | `/api/courses/:id/evaluations` | Agregar evaluación |
 | PUT | `/api/courses/:id/evaluations/:evalId` | Editar evaluación |
 | DELETE | `/api/courses/:id/evaluations/:evalId` | Eliminar evaluación |
+| GET | `/api/evaluations/upcoming?desde=YYYY-MM-DD` | Evaluaciones con fecha desde ese día, de todos los ramos |
 
 Códigos de error: `400` datos inválidos, `401` sin autenticar o token expirado, `403` origen no permitido, `404` no existe o no es tuyo, `409` email ya registrado, `413` cuerpo demasiado grande, `422` las ponderaciones superarían el 100%, `429` demasiados intentos.
 
@@ -341,4 +396,7 @@ Casi siempre es `DATABASE_URL`. Los logs de Render (servicio → **Logs**) lo di
 - [ ] Renombrar un ramo desde la interfaz (la API ya lo permite, falta el botón)
 - [ ] Créditos/SCT por ramo para un promedio general ponderado
 - [ ] Simulador "¿qué pasa si saco X?"
-- [ ] Calendario de evaluaciones próximas
+- [x] App Android con futuras evaluaciones y recordatorios locales
+- [ ] Modo offline en la app: ver y editar sin conexión, sincronizar al volver
+- [ ] Importar evaluaciones desde el calendario (iCal) del aula virtual
+- [ ] Futuras evaluaciones también en la web

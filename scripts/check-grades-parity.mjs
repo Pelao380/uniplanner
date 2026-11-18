@@ -1,18 +1,24 @@
-// El cálculo de notas existe dos veces: en el servidor y en el cliente, porque
-// el modo invitado trabaja sin API. Este script exige que las dos copias den
-// exactamente el mismo resultado. Corre en CI; si alguien edita una sola, falla.
+// El cálculo de notas existe tres veces: en el servidor, en la web (el modo
+// invitado trabaja sin API) y en la app móvil (calcula en el teléfono). Este
+// script exige que las tres copias den exactamente el mismo resultado. Corre
+// en CI; si alguien edita una sola, falla.
 //
 //   node scripts/check-grades-parity.mjs
 
 import * as servidor from '../server/src/grades.js';
 import * as cliente from '../client/src/grades.js';
+import * as movil from '../mobile/src/grades.js';
+
+const copias = { cliente, movil };
 
 let fallas = 0;
 const falla = (msg) => { console.error('✗ ' + msg); fallas += 1; };
 
 // --- Las constantes del dominio tienen que coincidir ---
 for (const k of ['MIN_GRADE', 'MAX_GRADE', 'PASSING_GRADE', 'ROUNDS_FINAL_GRADE']) {
-  if (servidor[k] !== cliente[k]) falla(`${k}: servidor ${servidor[k]} vs cliente ${cliente[k]}`);
+  for (const [nombre, copia] of Object.entries(copias)) {
+    if (servidor[k] !== copia[k]) falla(`${k}: servidor ${servidor[k]} vs ${nombre} ${copia[k]}`);
+  }
 }
 
 // --- Generador con semilla fija: una falla se puede reproducir ---
@@ -94,15 +100,15 @@ for (let i = 0; i < 20000; i += 1) casos.push(casoAlAzar());
 
 for (const [i, [evs, examen]] of casos.entries()) {
   const a = JSON.stringify(servidor.summarize(evs, examen));
-  const b = JSON.stringify(cliente.summarize(evs, examen));
-  if (a !== b) {
-    falla(`caso ${i} ${JSON.stringify(evs)} examen=${JSON.stringify(examen)}\n    servidor: ${a}\n    cliente:  ${b}`);
-    if (fallas > 5) break;
+  for (const [nombre, copia] of Object.entries(copias)) {
+    const b = JSON.stringify(copia.summarize(evs, examen));
+    if (a !== b) falla(`caso ${i} ${JSON.stringify(evs)} examen=${JSON.stringify(examen)}\n    servidor: ${a}\n    ${nombre}: ${b}`);
   }
+  if (fallas > 5) break;
 }
 
 if (fallas) {
-  console.error(`\n${fallas} diferencia(s) entre server/src/grades.js y client/src/grades.js.`);
+  console.error(`\n${fallas} diferencia(s) entre server/src/grades.js y sus copias en client/ y mobile/.`);
   process.exit(1);
 }
-console.log(`✓ ${casos.length} casos: el servidor y el cliente calculan igual.`);
+console.log(`✓ ${casos.length} casos: el servidor, la web y la app móvil calculan igual.`);

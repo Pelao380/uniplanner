@@ -72,7 +72,7 @@ jobs:
       # El modo invitado calcula las notas en el navegador, así que esa lógica
       # existe copiada en client/src/grades.js. Esto falla si las dos copias
       # dejan de dar el mismo resultado.
-      - name: El cálculo de notas es idéntico en cliente y servidor
+      - name: El cálculo de notas es idéntico en servidor, web y móvil
         run: node ../scripts/check-grades-parity.mjs
 
       - run: npm run build

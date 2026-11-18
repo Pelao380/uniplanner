@@ -511,4 +511,47 @@ conBase('API de UniPlanner', () => {
       expect(suyo.summary.neededInExamIsProvisional).toBe(true);
     });
   });
+describe('futuras evaluaciones', () => {
+    const auth = (r, token) => r.set('Authorization', `Bearer ${token}`);
+    const evaluar = (token, ramoId, datos) =>
+      auth(request(app).post(`/api/courses/${ramoId}/evaluations`), token).send(datos);
+
+    it('exige autenticación', async () => {
+      const res = await request(app).get('/api/evaluations/upcoming?desde=2026-11-18');
+      expect(res.status).toBe(401);
+    });
+
+    it('exige la fecha "desde" en formato YYYY-MM-DD', async () => {
+      const token = await registrar(40);
+      expect((await auth(request(app).get('/api/evaluations/upcoming'), token)).status).toBe(400);
+      expect((await auth(request(app).get('/api/evaluations/upcoming?desde=mañana'), token)).status).toBe(400);
+    });
+
+    it('lista desde la fecha pedida, ordenadas y con el nombre del ramo', async () => {
+      const token = await registrar(41);
+      const calculo = await crearRamo(token, 'Cálculo I');
+      const fisica = await crearRamo(token, 'Física');
+      await evaluar(token, calculo.id, { name: 'Pasada', weight: 20, due_date: '2026-11-17' });
+      await evaluar(token, calculo.id, { name: 'Sin fecha', weight: 20 });
+      await evaluar(token, fisica.id, { name: 'Lejana', weight: 30, due_date: '2026-12-10' });
+      await evaluar(token, calculo.id, { name: 'Hoy', weight: 30, due_date: '2026-11-18' });
+
+      const res = await auth(request(app).get('/api/evaluations/upcoming?desde=2026-11-18'), token);
+      expect(res.status).toBe(200);
+      expect(res.body.map((e) => e.name)).toEqual(['Hoy', 'Lejana']);
+      expect(res.body[0]).toMatchObject({
+        course_id: calculo.id, course_name: 'Cálculo I', weight: 30, grade: null, due_date: '2026-11-18',
+      });
+    });
+
+    it('no muestra las evaluaciones de otro usuario', async () => {
+      const a = await registrar(42);
+      const b = await registrar(43);
+      const ramo = await crearRamo(a);
+      await evaluar(a, ramo.id, { name: 'Certamen', weight: 40, due_date: '2026-12-01' });
+
+      const res = await auth(request(app).get('/api/evaluations/upcoming?desde=2026-01-01'), b);
+      expect(res.body).toEqual([]);
+    });
+  });
 });
