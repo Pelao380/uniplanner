@@ -8,7 +8,7 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REEMPLAZAR-por-tu-api.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://uniplanner-api-s7ch.onrender.com/api"
       }
     }
   }

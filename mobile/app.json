@@ -32,6 +32,16 @@
         }
       ]
     ],
-    "scheme": "uniplanner"
+    "scheme": "uniplanner",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "c119bd63-ca24-48c9-89e1-051a240dab68"
+      }
+    }
   }
 }
