@@ -1,17 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { useSesion } from '../../../sesion.jsx';
-import { activar, desactivar, disponibles, estanActivos, HORA_AVISO } from '../../../notificaciones.js';
+import {
+  activar, agendados, alarmasExactas, desactivar, disponibles, estanActivos, HORA_AVISO, probar,
+} from '../../../notificaciones.js';
+import { aTexto, corta } from '../../../fechas.js';
+import { abrirInicioAutomatico, esXiaomi, pedirExcepcion, restringida } from '../../../bateria.js';
 import { useTema } from '../../../tema.js';
-import { Boton, confirmar, Error, Tarjeta, Texto } from '../../../components/ui.jsx';
+import { Boton, confirmar, Error, Nota, Tarjeta, Texto } from '../../../components/ui.jsx';
 
 export default function Cuenta() {
   const t = useTema();
   const { user, logout } = useSesion();
   const [activos, setActivos] = useState(false);
   const [sinPermiso, setSinPermiso] = useState(false);
+  const [estado, setEstado] = useState(null); // { cantidad, proximo, exactas, bateria }
+  const [probando, setProbando] = useState(false);
 
-  useEffect(() => { estanActivos().then(setActivos); }, []);
+  // Lo agendado cambia al editar evaluaciones en otras pantallas: se relee al volver.
+  const revisar = useCallback(async () => {
+    const on = await estanActivos();
+    setActivos(on);
+    if (!on) return setEstado(null);
+    const [lista, exactas, bateria] = await Promise.all([agendados(), alarmasExactas(), restringida()]);
+    setEstado({ ...lista, exactas, bateria });
+  }, []);
+  useFocusEffect(useCallback(() => { revisar(); }, [revisar]));
+
+  const prueba = async () => {
+    await probar();
+    setProbando(true);
+  };
 
   const cambiar = async (quiere) => {
     setSinPermiso(false);
@@ -21,8 +41,10 @@ export default function Cuenta() {
       return;
     }
     const ok = await activar();
-    setActivos(ok);
     setSinPermiso(!ok);
+    // Se pide de inmediato, en el mismo gesto de activar: es cuando se entiende para qué es.
+    if (ok && await restringida()) await pedirExcepcion();
+    await revisar();
   };
 
   const salir = async () => {
@@ -61,10 +83,50 @@ export default function Cuenta() {
             <Boton titulo="Abrir ajustes del teléfono" fantasma onPress={() => Linking.openSettings()} />
           </>
         )}
-        {activos && (
-          <Texto chico suave>
-            Si no te llegan, revisa que el ahorro de batería no esté limitando a UniPlanner.
-          </Texto>
+        {activos && estado && (
+          <>
+            <Texto chico suave>
+              {estado.cantidad === 0
+                ? 'No hay avisos pendientes: solo se agendan evaluaciones con fecha desde mañana y sin nota.'
+                : `${estado.cantidad} ${estado.cantidad === 1 ? 'aviso agendado' : 'avisos agendados'}. `
+                  + (estado.proximo ? `El próximo: ${corta(aTexto(estado.proximo))}, ${HORA_AVISO}:00.` : '')}
+            </Texto>
+            {!estado.exactas && (
+              <Nota>
+                Android no permite alarmas exactas a UniPlanner, así que los avisos pueden atrasarse.
+                Actívalo en Ajustes › Apps › UniPlanner › Alarmas y recordatorios.
+              </Nota>
+            )}
+            {estado.bateria && (
+              <>
+                <Nota>
+                  El ahorro de batería puede bloquear los avisos. Permitir que UniPlanner funcione en
+                  segundo plano no gasta más batería: la app no hace nada mientras está cerrada.
+                </Nota>
+                <Boton
+                  titulo="Permitir en segundo plano"
+                  fantasma
+                  onPress={async () => { await pedirExcepcion(); await revisar(); }}
+                />
+              </>
+            )}
+            {esXiaomi && (
+              <>
+                <Texto chico suave>
+                  En Xiaomi activa también el "Inicio automático" de UniPlanner, o MIUI puede borrar
+                  los avisos agendados.
+                </Texto>
+                <Boton titulo="Abrir Inicio automático" fantasma onPress={abrirInicioAutomatico} />
+              </>
+            )}
+            <Boton titulo="Probar: avisar en 1 minuto" fantasma onPress={prueba} />
+            {probando && (
+              <Texto chico suave>
+                Listo. Bloquea el teléfono y espera: si en un par de minutos no llega, el ahorro
+                de batería está frenando a UniPlanner (Ajustes › Batería › Sin restricciones).
+              </Texto>
+            )}
+          </>
         )}
       </Tarjeta>
 

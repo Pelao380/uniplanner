@@ -15,6 +15,7 @@ import { desdeTexto, hoy } from './fechas.js';
 
 const CANAL = 'evaluaciones';
 const CLAVE_ACTIVOS = 'uniplanner.recordatorios';
+const PRUEBA = 'prueba';
 
 // El aviso sale la víspera a esta hora: tiempo para repasar, no para entrar en pánico.
 export const HORA_AVISO = 20;
@@ -38,14 +39,31 @@ export async function estanActivos() {
   return (await AsyncStorage.getItem(CLAVE_ACTIVOS)) === '1';
 }
 
+// Crear un canal que ya existe no hace nada, así que se llama cada vez que se
+// agenda: un aviso dirigido a un canal inexistente Android lo descarta en silencio.
+const asegurarCanal = () =>
+  Notifications.setNotificationChannelAsync(CANAL, {
+    name: 'Evaluaciones',
+    importance: Notifications.AndroidImportance.HIGH,
+  });
+
+// Sin alarmas exactas (Android 12+), Android trata el aviso como "más o menos a
+// esa hora" y con el teléfono en reposo lo puede atrasar horas. La app declara
+// USE_EXACT_ALARM, que se concede al instalar; esto revisa que así haya sido.
+export async function alarmasExactas() {
+  if (Platform.OS !== 'android') return true;
+  try {
+    return (await Notifications.getExactAlarmPermissionsAsync()).granted;
+  } catch {
+    return true; // versiones de Android sin este permiso
+  }
+}
+
 // Pide el permiso (Android 13+ lo exige). Devuelve si quedaron activos.
 export async function activar() {
   if (!disponibles) return false;
   // En Android el diálogo de permiso no aparece si no existe un canal.
-  await Notifications.setNotificationChannelAsync(CANAL, {
-    name: 'Evaluaciones',
-    importance: Notifications.AndroidImportance.HIGH,
-  });
+  await asegurarCanal();
 
   let { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') ({ status } = await Notifications.requestPermissionsAsync());
@@ -86,7 +104,11 @@ export function avisosPara(evaluaciones, ahora = new Date()) {
 
 export async function reprogramar(evaluaciones) {
   if (!(await estanActivos())) return 0;
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await asegurarCanal();
+  // Todo menos el aviso de prueba: volver a la app durante ese minuto lo borraría.
+  for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
+    if (n.identifier !== PRUEBA) await Notifications.cancelScheduledNotificationAsync(n.identifier);
+  }
 
   const avisos = avisosPara(evaluaciones);
   for (const { ev, cuando } of avisos) {
@@ -104,6 +126,34 @@ export async function reprogramar(evaluaciones) {
     });
   }
   return avisos.length;
+}
+
+// Para ver en el teléfono qué quedó agendado: cuántos avisos y el más próximo.
+export async function agendados() {
+  if (!disponibles) return { cantidad: 0, proximo: null };
+  const lista = (await Notifications.getAllScheduledNotificationsAsync())
+    .filter((n) => n.identifier !== PRUEBA);
+  const fechas = lista
+    .map((n) => n.trigger?.value ?? n.trigger?.date)
+    .filter((v) => v !== undefined && v !== null)
+    .map((v) => new Date(v))
+    .sort((a, b) => a - b);
+  return { cantidad: lista.length, proximo: fechas[0] ?? null };
+}
+
+// Un aviso de prueba en un minuto: alcanza para bloquear el teléfono y ver
+// si llega con la app cerrada.
+export async function probar() {
+  await asegurarCanal();
+  await Notifications.scheduleNotificationAsync({
+    identifier: PRUEBA,
+    content: { title: 'Aviso de prueba', body: 'Si ves esto, los recordatorios funcionan.' },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: new Date(Date.now() + 60_000),
+      channelId: CANAL,
+    },
+  });
 }
 
 // Baja las evaluaciones futuras y reprograma. Si la API no responde (dormida o
