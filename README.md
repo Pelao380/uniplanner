@@ -5,6 +5,8 @@
 Aplicación full stack para organizar los ramos de la universidad: registra tus evaluaciones con su ponderación, ingresa tus notas y sabe al instante tu promedio y **qué nota necesitas para aprobar** (escala chilena 1.0–7.0).
 
 > 🔗 **Demo:** https://uniplanner-sable.vercel.app — **sin registrarte**: entras y pruebas.
+>
+> 📱 **Android:** [descargar el APK](https://github.com/Pelao380/uniplanner/releases/latest/download/UniPlanner.apk) ([notas de la versión](https://github.com/Pelao380/uniplanner/releases/latest)).
 
 ![Listado de ramos: cada tarjeta muestra el promedio, el avance evaluado y si vas aprobando](docs/capturas/dashboard-claro.png)
 
@@ -83,6 +85,7 @@ node scripts/check-grades-parity.mjs
 
 En [`mobile/`](mobile/) vive la app para Android, hecha con React Native y Expo. Usa
 la misma API y la misma cuenta que la web: lo que agregas en un lado aparece en el otro.
+Se instala desde [GitHub Releases](https://github.com/Pelao380/uniplanner/releases/latest).
 
 - **Futuras evaluaciones:** todo lo que viene, de todos tus ramos, agrupado en "esta
   semana", "próxima semana" y "más adelante". Lo de mañana se marca en rojo.
@@ -102,6 +105,15 @@ La lista se rehace entera (cancelar todo y volver a agendar) al abrir la app, al
 volver a ella y después de cada cambio. Así una evaluación borrada o cambiada de fecha
 nunca deja un aviso huérfano, y lo que cambiaste desde la web llega en la próxima
 apertura.
+
+Agendar no basta para que el aviso llegue. Sin permiso de **alarmas exactas**, Android 12+
+trata la hora como aproximada y con el teléfono en reposo la atrasa por horas; la app
+declara `USE_EXACT_ALARM`, que se concede al instalar. Y capas como MIUI (Xiaomi) borran
+los avisos de apps que el ahorro de batería tiene restringidas, así que al activar los
+recordatorios la app pide la excepción con el diálogo del sistema, de un toque. No gasta
+más batería: con la app cerrada no corre nada, solo quedan horas agendadas en Android.
+En **Cuenta** se ve cuántos avisos hay agendados y se puede mandar uno de prueba
+([`mobile/src/bateria.js`](mobile/src/bateria.js)).
 
 ### "Hoy" lo decide el teléfono
 
@@ -128,7 +140,10 @@ npm run build:apk                   # al terminar, entrega el link de descarga d
 ```
 
 El APK se instala en cualquier Android permitiendo "instalar apps desconocidas". No pasa
-por Google Play, así que no hay costo.
+por Google Play, así que no hay costo. Para publicar una versión, sube `version` y
+`android.versionCode` en [`mobile/app.json`](mobile/app.json) (Android no deja
+instalar un `versionCode` menor encima de uno mayor) y adjunta el APK a un Release con el nombre `UniPlanner.apk`:
+así el link de descarga de arriba siempre apunta a la última.
 
 ## Tema claro y oscuro
 
