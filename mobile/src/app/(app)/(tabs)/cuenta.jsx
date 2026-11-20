@@ -7,6 +7,7 @@ import {
 } from '../../../notificaciones.js';
 import { aTexto, corta } from '../../../fechas.js';
 import { abrirInicioAutomatico, esXiaomi, pedirExcepcion, restringida } from '../../../bateria.js';
+import { buscarNueva, descargar, versionActual } from '../../../actualizacion.js';
 import { useTema } from '../../../tema.js';
 import { Boton, confirmar, Error, Nota, Tarjeta, Texto } from '../../../components/ui.jsx';
 
@@ -17,6 +18,7 @@ export default function Cuenta() {
   const [sinPermiso, setSinPermiso] = useState(false);
   const [estado, setEstado] = useState(null); // { cantidad, proximo, exactas, bateria }
   const [probando, setProbando] = useState(false);
+  const [nueva, setNueva] = useState(null);
 
   // Lo agendado cambia al editar evaluaciones en otras pantallas: se relee al volver.
   const revisar = useCallback(async () => {
@@ -26,7 +28,10 @@ export default function Cuenta() {
     const [lista, exactas, bateria] = await Promise.all([agendados(), alarmasExactas(), restringida()]);
     setEstado({ ...lista, exactas, bateria });
   }, []);
-  useFocusEffect(useCallback(() => { revisar(); }, [revisar]));
+  useFocusEffect(useCallback(() => {
+    revisar();
+    buscarNueva().then(setNueva);
+  }, [revisar]));
 
   const prueba = async () => {
     await probar();
@@ -130,7 +135,16 @@ export default function Cuenta() {
         )}
       </Tarjeta>
 
+      {nueva && (
+        <Tarjeta>
+          <Texto negrita>Hay una versión nueva: {nueva}</Texto>
+          <Texto chico suave>Se instala encima de la actual, sin perder nada.</Texto>
+          <Boton titulo="Descargar" onPress={descargar} />
+        </Tarjeta>
+      )}
+
       <Boton titulo="Cerrar sesión" peligro fantasma onPress={salir} />
+      <Texto chico suave style={s.version}>UniPlanner {versionActual}</Texto>
     </ScrollView>
   );
 }
@@ -139,4 +153,5 @@ const s = StyleSheet.create({
   contenido: { padding: 16, gap: 12 },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   flex: { flex: 1 },
+  version: { textAlign: 'center' },
 });

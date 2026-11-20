@@ -145,6 +145,16 @@ por Google Play, así que no hay costo. Para publicar una versión, sube `versio
 instalar un `versionCode` menor encima de uno mayor) y adjunta el APK a un Release con el nombre `UniPlanner.apk`:
 así el link de descarga de arriba siempre apunta a la última.
 
+### Avisar que hay una versión nueva
+
+Sin Google Play nadie le avisa al teléfono que salió una versión. Desde la 1.0.3, al
+abrir la app se consulta a qué tag redirige `github.com/<repo>/releases/latest` y, si
+es más nuevo que la versión instalada, se ofrece descargarlo
+([`mobile/src/actualizacion.js`](mobile/src/actualizacion.js)). No usa
+`api.github.com`: sin token permite 60 consultas por hora por IP, y en datos móviles
+muchos teléfonos comparten la misma IP. La versión instalada se lee de Android
+(`expo-application`) y no de `app.json`, que es lo que de verdad hay en el teléfono.
+
 ## Tema claro y oscuro
 
 El botón de la barra superior rota entre tres estados: **el del sistema** (por defecto),

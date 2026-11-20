@@ -2,7 +2,7 @@
   "expo": {
     "name": "UniPlanner",
     "slug": "uniplanner",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -22,7 +22,7 @@
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
       ],
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,6 +35,19 @@
         "expo-notifications",
         {
           "color": "#4F46E5"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#4F46E5",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#312E81"
+          }
         }
       ]
     ],
