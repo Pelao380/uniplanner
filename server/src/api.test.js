@@ -38,7 +38,9 @@ conBase('API de UniPlanner', () => {
     const sql = await readFile(path.join(dir, '..', 'schema.sql'), 'utf8');
     await pool.query(sql);
     // Límites altos para que el rate limiter no corte la propia suite.
-    app = createApp({ rateLimits: { login: 10_000, register: 10_000, auth: 10_000 } });
+    // El de usuario también: TRUNCATE reinicia los ids y el contador de
+    // "user:1" se acumularía entre tests.
+    app = createApp({ rateLimits: { login: 10_000, register: 10_000, auth: 10_000, user: 10_000 } });
   });
 
   afterAll(async () => {
@@ -422,6 +424,50 @@ conBase('API de UniPlanner', () => {
       expect((await intentar()).status).toBe(401);
       expect((await intentar()).status).toBe(401);
       expect((await intentar()).status).toBe(429);
+    });
+
+    it('limita las peticiones por cuenta, no por IP', async () => {
+      const appLimitada = createApp({ rateLimits: { user: 2 } });
+      const tokenA = await registrar(1);
+      const tokenB = await registrar(2);
+      const listar = (token) =>
+        request(appLimitada).get('/api/courses').set('Authorization', `Bearer ${token}`);
+
+      expect((await listar(tokenA)).status).toBe(200);
+      expect((await listar(tokenA)).status).toBe(200);
+      expect((await listar(tokenA)).status).toBe(429);
+      // Misma IP, otra cuenta: no paga por la primera.
+      expect((await listar(tokenB)).status).toBe(200);
+    });
+
+    it('no deja pasar del máximo de ramos por cuenta', async () => {
+      const appLimitada = createApp({ rateLimits: { user: 10_000 }, quotas: { coursesPerUser: 2 } });
+      const token = await registrar(1);
+      const crear = () =>
+        request(appLimitada).post('/api/courses').set('Authorization', `Bearer ${token}`).send({ name: 'Ramo' });
+
+      expect((await crear()).status).toBe(201);
+      expect((await crear()).status).toBe(201);
+      const res = await crear();
+      expect(res.status).toBe(422);
+      expect(res.body.error).toMatch(/máximo de 2 ramos/);
+    });
+
+    it('no deja pasar del máximo de evaluaciones por ramo', async () => {
+      const appLimitada = createApp({ rateLimits: { user: 10_000 }, quotas: { evaluationsPerCourse: 2 } });
+      const token = await registrar(1);
+      const ramo = await crearRamo(token);
+      const crear = () =>
+        request(appLimitada)
+          .post(`/api/courses/${ramo.id}/evaluations`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ name: 'Control', weight: 10 });
+
+      expect((await crear()).status).toBe(201);
+      expect((await crear()).status).toBe(201);
+      const res = await crear();
+      expect(res.status).toBe(422);
+      expect(res.body.error).toMatch(/máximo 2 evaluaciones/);
     });
   });
 

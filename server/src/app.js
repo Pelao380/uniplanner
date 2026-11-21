@@ -14,9 +14,20 @@ export const DEFAULT_RATE_LIMITS = {
   login: 10,
   register: 5,
   auth: 60,
+  // Peticiones con sesión por usuario (no por IP): basta una cuenta para
+  // escribir en bucle, y la base del plan gratis tiene un tope de espacio.
+  // Subir los datos de invitado son unas pocas decenas: sobra margen.
+  user: 300,
 };
 
-export function createApp({ rateLimits = {}, trustProxy = false } = {}) {
+// Cuánto puede guardar una cuenta. Nadie lleva más de 50 ramos ni 30
+// evaluaciones en uno; el tope existe para que un script no llene la base.
+export const DEFAULT_QUOTAS = {
+  coursesPerUser: 50,
+  evaluationsPerCourse: 30,
+};
+
+export function createApp({ rateLimits = {}, quotas = {}, trustProxy = false } = {}) {
   if (!process.env.JWT_SECRET) {
     throw new Error('Falta JWT_SECRET en el archivo .env');
   }
@@ -28,6 +39,7 @@ export function createApp({ rateLimits = {}, trustProxy = false } = {}) {
 
   const limits = { ...DEFAULT_RATE_LIMITS, ...rateLimits };
   const app = express();
+  app.locals.quotas = { ...DEFAULT_QUOTAS, ...quotas };
 
   // Render, Fly y similares ponen un proxy delante. Sin esto el rate limiter
   // ve siempre la IP del proxy y limita a todos los usuarios como si fueran uno.
@@ -72,8 +84,11 @@ export function createApp({ rateLimits = {}, trustProxy = false } = {}) {
   app.use('/api/auth/login', limiter(limits.login, { skipSuccessfulRequests: true }));
   app.use('/api/auth/register', limiter(limits.register));
   app.use('/api/auth', limiter(limits.auth), authRoutes);
-  app.use('/api/courses', requireAuth, courseRoutes);
-  app.use('/api/evaluations', requireAuth, evaluationRoutes);
+  // Va después de requireAuth para contar por cuenta: el mismo contador para
+  // las dos rutas, así no se duplica el margen repartiendo las peticiones.
+  const userLimiter = limiter(limits.user, { keyGenerator: (req) => `user:${req.userId}` });
+  app.use('/api/courses', requireAuth, userLimiter, courseRoutes);
+  app.use('/api/evaluations', requireAuth, userLimiter, evaluationRoutes);
 
   app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 

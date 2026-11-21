@@ -98,6 +98,12 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', validate(courseSchema), asyncHandler(async (req, res) => {
+  const { coursesPerUser } = req.app.locals.quotas;
+  const { rows: [{ n }] } = await query('SELECT COUNT(*)::int AS n FROM courses WHERE user_id = $1', [req.userId]);
+  if (n >= coursesPerUser) {
+    return res.status(422).json({ error: `Llegaste al máximo de ${coursesPerUser} ramos. Borra alguno para agregar otro.` });
+  }
+
   const { name, semester, exam_weight, exemption_grade } = req.body;
   const { rows } = await query(
     `INSERT INTO courses (user_id, name, semester, exam_weight, exemption_grade)
@@ -136,6 +142,12 @@ router.post('/:id/evaluations', courseParams, validate(evaluationSchema), asyncH
   const course = await findOwnedCourse(req.params.id, req.userId);
   if (!course) return res.status(404).json({ error: 'Ramo no encontrado' });
   const { name, weight, grade, due_date } = req.body;
+
+  const { evaluationsPerCourse } = req.app.locals.quotas;
+  const { rows: [{ n }] } = await query('SELECT COUNT(*)::int AS n FROM evaluations WHERE course_id = $1', [course.id]);
+  if (n >= evaluationsPerCourse) {
+    return res.status(422).json({ error: `Un ramo puede tener como máximo ${evaluationsPerCourse} evaluaciones.` });
+  }
 
   const total = await weightOverflow(course.id, weight);
   if (total !== null) {

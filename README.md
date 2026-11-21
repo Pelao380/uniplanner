@@ -325,12 +325,15 @@ si alguien vuelve a poner un `await` dentro del `map`, falla ahí y no en produc
 
 - Contraseñas con bcrypt a 12 rondas. El login tarda a propósito: ver el comentario en [`auth.js`](server/src/routes/auth.js).
 - Rate limiting en `/api/auth`: 10 logins y 5 registros por IP cada 15 minutos. Los logins exitosos no cuentan.
+- Rate limiting por cuenta (no por IP) en las rutas con sesión: 300 peticiones cada 15 minutos. Más un tope de 50 ramos por cuenta y 30 evaluaciones por ramo, para que un script con una sola cuenta no pueda llenar la base del plan gratis.
 - Cabeceras de seguridad con helmet; `x-powered-by` desactivado.
+- En la web, [`vercel.json`](client/vercel.json) envía una CSP estricta (solo scripts propios, sin `'unsafe-inline'`, y conexiones solo a la API) y prohíbe cargar la app dentro de un iframe.
 - CORS con lista blanca (`CLIENT_URL` acepta varios orígenes separados por coma).
 - Cuerpo JSON limitado a 10 KB.
 - El login tarda lo mismo con un email inexistente que con uno real, para que no se pueda averiguar quién tiene cuenta.
 - En producción el servidor no arranca si `JWT_SECRET` tiene menos de 32 caracteres.
-- El token se guarda en `localStorage`: simple y suficiente para este alcance, a cambio de ser vulnerable a XSS. Una cookie `httpOnly` + CSRF sería más robusta.
+- El token se guarda en `localStorage`: simple y suficiente para este alcance, a cambio de ser vulnerable a XSS. La CSP reduce ese riesgo; una cookie `httpOnly` + CSRF sería más robusta.
+- **Decisión consciente:** el registro sí avisa cuando un email ya tiene cuenta, así que alguien podría probar emails para saber quién usa la app. El riesgo queda acotado por el límite de 5 registros cada 15 minutos por IP. El arreglo completo es verificar por email (responder siempre "te enviamos un correo" y avisar por ahí si ya había cuenta), y queda fuera del alcance porque exige un servicio de correo. Muchos sitios lo dejan así porque es más cómodo para quien se registra.
 
 ## Despliegue
 
